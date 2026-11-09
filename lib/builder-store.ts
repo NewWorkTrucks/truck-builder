@@ -14,6 +14,9 @@ type BuilderState = {
   /** "Show parts": upfits separated from the chassis. */
   exploded: boolean;
   setExploded: (exploded: boolean) => void;
+  /** Headlights and taillights on the 3D truck. */
+  lightsOn: boolean;
+  setLightsOn: (on: boolean) => void;
   dismissNotices: () => void;
 };
 
@@ -40,5 +43,7 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
   },
   exploded: false,
   setExploded: (exploded) => set({ exploded }),
+  lightsOn: false,
+  setLightsOn: (lightsOn) => set({ lightsOn }),
   dismissNotices: () => set({ notices: [] }),
 }));

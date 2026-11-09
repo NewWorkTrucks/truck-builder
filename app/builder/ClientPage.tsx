@@ -4,11 +4,13 @@ import Scene from "@/components/builder/Scene";
 import SpecSheet from "@/components/builder/SpecSheet";
 import { useBuilderStore } from "@/lib/builder-store";
 import { getVehicle } from "@/lib/catalog";
-import { Rotate3d, Truck } from "lucide-react";
+import { Lightbulb, Rotate3d, Truck } from "lucide-react";
 import Link from "next/link";
 
 export default function TruckBuilder() {
   const vehicleId = useBuilderStore((s) => s.build.vehicleId);
+  const lightsOn = useBuilderStore((s) => s.lightsOn);
+  const setLightsOn = useBuilderStore((s) => s.setLightsOn);
 
   return (
     <>
@@ -34,9 +36,19 @@ export default function TruckBuilder() {
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <div className="relative min-h-0 flex-1 bg-gradient-to-b from-primary/10 to-background">
           <Scene />
-          <p className="pointer-events-none absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-background/80 px-3 py-1.5 text-base text-muted-foreground whitespace-nowrap backdrop-blur">
+          <p className="pointer-events-none absolute bottom-3 left-3 flex items-center sm:left-1/2 sm:-translate-x-1/2 gap-1.5 rounded-full bg-background/80 px-3 py-1.5 text-base text-muted-foreground whitespace-nowrap backdrop-blur">
             <Rotate3d className="size-4" /> Pick a view above, or drag to rotate
           </p>
+          <button
+            type="button"
+            aria-pressed={lightsOn}
+            aria-label="Truck lights"
+            title={lightsOn ? "Turn lights off" : "Turn lights on"}
+            onClick={() => setLightsOn(!lightsOn)}
+            className="absolute right-3 bottom-3 flex size-12 items-center justify-center rounded-full border bg-background/90 shadow-sm backdrop-blur transition-colors outline-none hover:border-primary focus-visible:ring-3 focus-visible:ring-ring/50 aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+          >
+            <Lightbulb className="size-5" aria-hidden />
+          </button>
         </div>
 
         {/* Bottom sheet on phones, sidebar on large screens. */}

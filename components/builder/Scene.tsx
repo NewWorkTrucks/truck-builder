@@ -34,6 +34,7 @@ export default function Scene() {
   const build = useBuilderStore((s) => s.build);
   const exploded = useBuilderStore((s) => s.exploded);
   const setExploded = useBuilderStore((s) => s.setExploded);
+  const lightsOn = useBuilderStore((s) => s.lightsOn);
   const [ready, setReady] = useState(false);
   // Catalog id -> its paint material's sRGB hex, e.g. { "ram-696j-body": { "upfit-paint": "#1F5EFF" } }.
   const partColors = useMemo(
@@ -59,6 +60,7 @@ export default function Scene() {
           partColors={partColors}
           exploded={exploded}
           onExplodedChange={setExploded}
+          lightsOn={lightsOn}
           interaction="orbit"
           theme="light"
           lightsTheme="dark"

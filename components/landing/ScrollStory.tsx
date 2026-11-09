@@ -2,13 +2,12 @@
 import Link from "next/link";
 import { ArrowDown, CircleCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { PAINT_COLORS, type PaintColorId } from "@/lib/paint";
 import HeroStage from "../hero/HeroStage";
 import type { ScrollStory as Story } from "../showroom/ScrollDirector";
-import { heroColors, paintAt, samplePose } from "./scroll-story";
+import { heroColors, samplePose } from "./scroll-story";
 
 const STAGE_LABEL =
-  "3D RAM 2500HD crew cab work truck with a 696J service body, utility rack and step bumper. As you scroll, the camera circles the truck, the parts separate and come back together, and the truck is repainted.";
+  "3D RAM 2500HD crew cab work truck with a 696J service body, utility rack and step bumper. As you scroll, the camera circles the truck, the parts separate with each one labelled, and come back together.";
 
 const PARTS = [
   { title: "Service body", detail: "696J" },
@@ -17,7 +16,10 @@ const PARTS = [
 ];
 
 /** Chapters in order; each lines up with a beat in scroll-story.ts. */
-const CHAPTER_COUNT = 6;
+const CHAPTER_COUNT = 5;
+
+/** The truck stays in its stock white. */
+const COLORS = heroColors("white");
 
 /**
  * The landing page's opening: a 3D truck that plays like a video as you
@@ -26,17 +28,12 @@ const CHAPTER_COUNT = 6;
  */
 export default function ScrollStory() {
   const [track, setTrack] = useState<HTMLElement | null>(null);
-  const [paint, setPaint] = useState<PaintColorId>("white");
   const [active, setActive] = useState(0);
 
   const story = useMemo<Story | undefined>(
-    () =>
-      track
-        ? { track, pose: samplePose, onProgress: (p) => setPaint(paintAt(p)) }
-        : undefined,
+    () => (track ? { track, pose: samplePose } : undefined),
     [track],
   );
-  const colors = useMemo(() => heroColors(paint), [paint]);
 
   // The chapter crossing the middle of the viewport is the one in focus.
   useEffect(() => {
@@ -66,7 +63,7 @@ export default function ScrollStory() {
           theme="dark"
           label={STAGE_LABEL}
           className="story-stage"
-          partColors={colors}
+          partColors={COLORS}
           story={story}
         >
           <></>
@@ -143,26 +140,7 @@ export default function ScrollStory() {
           </div>
         </article>
 
-        <article className="story-chapter" data-chapter data-side="left" data-on={active === 4 || undefined}>
-          <div className="story-card">
-            <p className="story-step">04 · Paint</p>
-            <h2>Make it yours.</h2>
-            <p className="story-lede">
-              Match your fleet colors. The body and rack follow the paint, and the change shows
-              instantly.
-            </p>
-            <ul className="story-swatches" aria-label="Paint colors">
-              {PAINT_COLORS.map((c) => (
-                <li key={c.id} data-on={c.id === paint || undefined}>
-                  <span style={{ background: c.hex }} aria-hidden />
-                  {c.name}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </article>
-
-        <article className="story-chapter" data-chapter data-side="bottom" data-on={active === 5 || undefined}>
+        <article className="story-chapter" data-chapter data-side="bottom" data-on={active === 4 || undefined}>
           <div className="story-card story-card-end">
             <h2>Now build yours.</h2>
             <p className="story-lede">

@@ -25,7 +25,9 @@ import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { EXPLODE_TIMING, explodePlan, type ExplodePart } from "@/lib/explode";
 import { PAINT_MATERIAL } from "@/lib/paint";
+import { TRUCK_LIGHTS } from "@/lib/truck-lights";
 import { ScrollDirector, type ScrollStory } from "./ScrollDirector";
+import TruckLights, { isLightBeam } from "./TruckLights";
 import { getRenderBudget } from "@/lib/render-budget";
 import RenderStats, { statsEnabled } from "../three/RenderStats";
 import {
@@ -112,6 +114,8 @@ type Props = {
   inputTarget?: HTMLElement | null;
   /** Poster rendering: hold the initial rotation. */
   still?: boolean;
+  /** Headlights and taillights (lib/truck-lights.ts). Omitted, the truck has no lamps at all. */
+  lightsOn?: boolean;
   /**
    * Turntable only: page scroll drives the camera, the turntable angle and the
    * parts (see ScrollDirector), in place of auto-rotate and drag.
@@ -378,6 +382,7 @@ function Truck({
   theme,
   spin,
   still,
+  lightsOn,
 }: {
   vehicleId: string;
   parts: Part[];
@@ -392,6 +397,7 @@ function Truck({
   /** Present for the turntable: centers the parts and rotates the group. */
   spin?: Spin;
   still: boolean;
+  lightsOn?: boolean;
 }) {
   const spinner = useRef<THREE.Group>(null);
   const truck = useRef<THREE.Group>(null);
@@ -434,7 +440,8 @@ function Truck({
     g.updateWorldMatrix(true, true);
     g.traverse((o) => {
       const mesh = o as THREE.Mesh & { isLine2?: boolean };
-      if (mesh.isMesh && !mesh.isLine2) box.union(part.makeEmpty().expandByObject(mesh, true));
+      if (mesh.isMesh && !mesh.isLine2 && !isLightBeam(mesh))
+        box.union(part.makeEmpty().expandByObject(mesh, true));
     });
     const center = box.getCenter(new THREE.Vector3());
     g.position.set(-center.x, DISC.height - box.min.y, -center.z);
@@ -443,18 +450,30 @@ function Truck({
     footprint.current?.scale.set(size.x * 1.25, size.z * 1.12, 1);
   }, [spin, key]);
 
+  // Before the labels (priority 0) project the parts, so they use this frame's angle.
   useFrame((_, delta) => {
     if (!spin) return;
     if (!still) spin.step(delta);
     spinner.current!.rotation.y = spin.angle;
-  });
+  }, -2);
 
   return (
     <group ref={spinner}>
       {spin && <FootprintShadow ref={footprint} />}
       <group ref={truck}>
         {shown.map(({ p, ex, leaving }) => {
-          const model = <Model {...p} colors={p.id ? partColors?.[p.id] : undefined} />;
+          const lamps = lightsOn !== undefined && p.id ? TRUCK_LIGHTS[p.id] : undefined;
+          const model = (
+            <>
+              <Model {...p} colors={p.id ? partColors?.[p.id] : undefined} />
+              {/* Lamps are in the part's model space, so they share its placement. */}
+              {lamps && (
+                <group position={p.position}>
+                  <TruckLights lamps={lamps} on={lightsOn!} />
+                </group>
+              )}
+            </>
+          );
           return explosion && presence && ex ? (
             <ExplodeGroup
               key={p.url}
@@ -761,6 +780,7 @@ export default function ShowroomScene({
   active = true,
   inputTarget = null,
   still = false,
+  lightsOn,
   story,
   onReady,
 }: Props) {
@@ -957,7 +977,18 @@ export default function ShowroomScene({
         <>
           <CameraRig mobile={mobile} />
           <FrameCap enabled={animate} fps={AUTO_ROTATE_FPS} />
-          {story && <ScrollDirector story={story} spin={spin} explosion={explosion} reduced={reduced} />}
+          {story && (
+            <>
+              <ScrollDirector story={story} spin={spin} explosion={explosion} reduced={reduced} />
+              <ExplodeLabels
+                explosion={explosion}
+                plan={plan}
+                front={front}
+                overlayRef={labelsRef}
+                toolbarRef={toolbarRef}
+              />
+            </>
+          )}
         </>
       ) : (
         <>
@@ -1010,11 +1041,12 @@ export default function ShowroomScene({
           theme={theme}
           spin={turntable ? spin : undefined}
           still={frozen}
+          lightsOn={lightsOn}
         />
         <ReadySignal onReady={handleReady} />
       </Suspense>
     </Canvas>
-    {explodable && !story && <LabelOverlay plan={plan} overlayRef={labelsRef} />}
+    {explodable && <LabelOverlay plan={plan} overlayRef={labelsRef} theme={theme} />}
     {!turntable && (
       <div
         ref={toolbarRef}

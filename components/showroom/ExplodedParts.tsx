@@ -1,10 +1,18 @@
 "use client";
-import { EXPLODE_TIMING, SLIDE_TIMING, slideDelays, type ExplodePart } from "@/lib/explode";
+import {
+  EXPLODE_TIMING,
+  SLIDE_TIMING,
+  slideDelays,
+  type ExplodePart,
+  type ExplodeRole,
+} from "@/lib/explode";
 import { Line } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useRef, type ReactNode, type RefObject } from "react";
 import * as THREE from "three";
 import type { Line2, LineMaterial, OrbitControls } from "three-stdlib";
+import type { HeroTheme } from "./scene-config";
+import { isLightBeam } from "./TruckLights";
 
 export const easeInOut = (k: number) =>
   k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
@@ -17,8 +25,10 @@ export const easeInOut = (k: number) =>
 export class Explosion {
   exploded = false;
   parts: ExplodePart[] = [];
-  /** Mounted (unexploded) bounds per part id, for lines, labels and framing. */
+  /** Mounted (unexploded) bounds per part id, for lines, labels and framing, in `frame`'s space. */
   boxes = new Map<string, THREE.Box3>();
+  /** The truck group: boxes and part offsets are in its space, which the turntable moves. */
+  frame: THREE.Object3D | null = null;
   private progress = new Map<string, number>();
   private startAt = new Map<string, number>();
   private last = 0;
@@ -26,6 +36,12 @@ export class Explosion {
 
   setParts(parts: ExplodePart[]) {
     this.parts = parts;
+  }
+
+  /** Record a part's bounds; `group` is the part's group, at its mounted position. */
+  measure(id: string, group: THREE.Object3D) {
+    this.frame = group.parent;
+    this.boxes.set(id, partBounds(group));
   }
 
   /** Start separating (true) or reassembling (false) from wherever each part is now. */
@@ -316,13 +332,22 @@ const isOriginMarker = (b: THREE.Box3) =>
 function partBounds(root: THREE.Object3D) {
   const box = new THREE.Box3();
   root.updateWorldMatrix(true, true);
+  // The truck group is re-centred and turned on the turntable after this runs,
+  // so measure in its space rather than the world's.
+  _toFrame.copy(root.parent!.matrixWorld).invert();
   root.traverse((o) => {
-    if (!(o as THREE.Mesh).isMesh) return;
-    _box.makeEmpty().expandByObject(o);
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh || isLightBeam(mesh)) return;
+    if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+    _box
+      .copy(mesh.geometry.boundingBox!)
+      .applyMatrix4(_meshToFrame.multiplyMatrices(_toFrame, mesh.matrixWorld));
     if (!isOriginMarker(_box)) box.union(_box);
   });
   return box;
 }
+const _toFrame = new THREE.Matrix4();
+const _meshToFrame = new THREE.Matrix4();
 
 /** A material's own opacity settings, restored exactly once a fade ends. */
 type FadeBase = { opacity: number; transparent: boolean; alphaTest: number };
@@ -401,7 +426,7 @@ export function ExplodeGroup({
     const g = ref.current!;
     // Measure mounted, then place: a part added while exploded never shows mounted.
     g.position.set(0, 0, 0);
-    explosion.boxes.set(part.id, partBounds(g));
+    explosion.measure(part.id, g);
     presence.mount(part.id, performance.now(), enterDelay);
     place();
     return () => {
@@ -492,26 +517,56 @@ export function CenterLines({ explosion, plan }: { explosion: Explosion; plan: E
     .map((p) => <CenterLine key={p.id} explosion={explosion} part={p} />);
 }
 
-/** DOM labels (no draw calls), positioned by ExplodeLabels. Hidden from screen readers: the live region announces. */
+const ROLE_TITLE: Record<ExplodeRole, string> = {
+  chassis: "Chassis",
+  body: "Body",
+  rack: "Rack",
+  bumper: "Bumper",
+};
+
+const CARD_MOTION =
+  "invisible translate-y-2 opacity-0 transition-[opacity,visibility,translate] duration-300 ease-out data-[shown=true]:visible data-[shown=true]:translate-y-0 data-[shown=true]:opacity-100 motion-reduce:translate-y-0 motion-reduce:transition-none";
+
+/**
+ * DOM labels (no draw calls), positioned by ExplodeLabels. Hidden from screen
+ * readers: the live region (builder) or the stage's label (landing) describes them.
+ * The dark theme is the landing page's callout: what the part is, then its name,
+ * with a leader down to the part.
+ */
 export function LabelOverlay({
   plan,
   overlayRef,
+  theme = "light",
 }: {
   plan: ExplodePart[];
   overlayRef: RefObject<HTMLDivElement | null>;
+  theme?: HeroTheme;
 }) {
   return (
     <div ref={overlayRef} aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
       {plan.map((p) => (
         // The outer box is moved to the part; the inner card fades and rises in.
         <div key={p.id} data-part={p.id} className="absolute top-0 left-0 whitespace-nowrap">
-          <div
-            data-card
-            data-shown="false"
-            className="invisible translate-y-2 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-base font-semibold text-neutral-900 opacity-0 shadow-sm transition-[opacity,visibility,translate] duration-300 ease-out data-[shown=true]:visible data-[shown=true]:translate-y-0 data-[shown=true]:opacity-100 motion-reduce:translate-y-0 motion-reduce:transition-none"
-          >
-            {p.label}
-          </div>
+          {theme === "dark" ? (
+            <div
+              data-card
+              data-shown="false"
+              className={`${CARD_MOTION} relative flex flex-col rounded-lg border border-[#2a3644] bg-[#0a0b0d]/85 px-3 py-1.5 backdrop-blur-sm after:absolute after:top-full after:left-1/2 after:h-2 after:w-px after:bg-[#7cc4ff]`}
+            >
+              <span className="text-xs font-medium tracking-[0.18em] text-[#7cc4ff] uppercase">
+                {ROLE_TITLE[p.role]}
+              </span>
+              <span className="text-base font-semibold text-[#f2f4f7]">{p.label}</span>
+            </div>
+          ) : (
+            <div
+              data-card
+              data-shown="false"
+              className={`${CARD_MOTION} rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-base font-semibold text-neutral-900 shadow-sm`}
+            >
+              {p.label}
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -569,6 +624,8 @@ export function ExplodeLabels({
     if (!root) return;
     const top = toolbarInset(toolbarRef.current, gl.domElement);
     const show = explosion.fullyExploded;
+    const frame = explosion.frame;
+    frame?.updateWorldMatrix(true, false);
     const cards: { card: HTMLElement; part: ExplodePart }[] = [];
     const items: { el: HTMLElement; card: HTMLElement; part: ExplodePart; x: number; y: number; dist: number }[] = [];
     for (const p of plan) {
@@ -588,6 +645,7 @@ export function ExplodeLabels({
         _top.x += front[0] * len.x * 0.3;
         _top.z += front[1] * len.z * 0.3;
       }
+      if (frame) _top.applyMatrix4(frame.matrixWorld);
       _ndc.copy(_top).project(camera);
       if (_ndc.z > 1) continue;
       items.push({

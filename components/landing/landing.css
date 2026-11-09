@@ -84,6 +84,28 @@
   outline-offset: 3px;
 }
 
+/* ---- HUD rings: decorative dials behind each section ---- */
+.hud {
+  position: absolute;
+  z-index: -1;
+  aspect-ratio: 1;
+  pointer-events: none;
+  color: var(--hero-eyebrow);
+}
+.hud-spin {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+  animation: hud-spin var(--dur) linear infinite var(--dir, normal);
+}
+.hud[data-paused] .hud-spin {
+  animation-play-state: paused;
+}
+@keyframes hud-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* ---- Scroll story ---- */
 .story {
   position: relative;
@@ -95,7 +117,6 @@
   position: sticky;
   top: 0;
   height: 100svh;
-  margin-bottom: -100svh;
   overflow: hidden;
   background: radial-gradient(ellipse at 50% 62%, var(--hero-spot) 0%, var(--hero-bg) 72%);
 }
@@ -148,6 +169,10 @@
 .story-chapters {
   position: relative;
   z-index: 1;
+  /* Chapters start on top of the pinned stage. The overlap is taken here, not
+     as a negative margin on the stage, so the stage is released when the
+     story ends instead of hanging over the sections below. */
+  margin-top: -100svh;
 }
 .story-chapter {
   display: flex;
@@ -232,8 +257,7 @@
   height: 16px;
 }
 
-.story-parts,
-.story-swatches {
+.story-parts {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
@@ -241,8 +265,7 @@
   padding: 0;
   list-style: none;
 }
-.story-parts li,
-.story-swatches li {
+.story-parts li {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -262,16 +285,6 @@
   height: 20px;
   flex: none;
   color: var(--hero-accent);
-}
-.story-swatches span {
-  width: 18px;
-  height: 18px;
-  border-radius: 999px;
-  border: 1px solid rgb(255 255 255 / 0.3);
-}
-.story-swatches li[data-on] {
-  color: var(--hero-text);
-  border-color: var(--hero-accent);
 }
 
 /* The first and last chapters are centred, not beside the truck. */
@@ -353,6 +366,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .hud-spin {
+    animation: none;
+  }
   .story-card,
   .story-rail li,
   .story-stage canvas {

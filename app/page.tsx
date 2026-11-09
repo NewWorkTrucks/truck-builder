@@ -70,10 +70,6 @@ const faqs = [
     a: "Yes. Our team helps you pick specialized upfits and configurations so the vehicle is ready for the work it needs to do. You can try them out in the builder first.",
   },
   {
-    q: "Do you offer financing or leasing?",
-    a: "Yes. Financing and leasing options give you flexibility when you add or replace vehicles.",
-  },
-  {
     q: "What do fleet programs include?",
     a: "Our fleet programs include maintenance and warranty coverage.",
   },

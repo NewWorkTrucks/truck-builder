@@ -37,8 +37,7 @@ function FloorGrid() {
   );
 }
 
-export default function ShowroomHero({
-  theme = "light",
+export default function ShowroomHero({ 
   model,
 }: {
   theme?: HeroTheme;

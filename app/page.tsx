@@ -33,11 +33,6 @@ const services: { icon: LucideIcon; title: string; text: string }[] = [
     text: "Specialized bodies, racks, and bumpers so each vehicle is ready for its job.",
   },
   {
-    icon: Banknote,
-    title: "Financing and leasing",
-    text: "Flexible options when you add or replace vehicles.",
-  },
-  {
     icon: ShieldCheck,
     title: "Fleet programs",
     text: "Fleet programs that include maintenance and warranty coverage.",

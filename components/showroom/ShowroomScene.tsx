@@ -531,13 +531,32 @@ const fitDistance = (aspect: number) =>
   Math.hypot(...ORBIT_CAMERA) * Math.max(1, FIT_ASPECT / aspect);
 
 /** OrbitControls fitted to the viewport, with zoom limited around that distance. */
-function OrbitRig({ explodeFit }: { explodeFit: number | null }) {
+function OrbitRig({
+  explodeFit,
+  toolbarRef,
+}: {
+  explodeFit: number | null;
+  toolbarRef: React.RefObject<HTMLElement | null>;
+}) {
   const camera = useThree((s) => s.camera);
-  const aspect = useThree((s) => s.size.width / s.size.height);
-  const fit = fitDistance(aspect);
+  const gl = useThree((s) => s.gl);
+  const size = useThree((s) => s.size);
+  const invalidate = useThree((s) => s.invalidate);
+  const fit = fitDistance(size.width / size.height);
   useEffect(() => {
     camera.position.setLength(fit);
   }, [camera, fit]);
+
+  // The toolbar covers the top of the canvas, so the truck sits optically high.
+  // Shift the image down by half the toolbar's height to center it in the free area.
+  useLayoutEffect(() => {
+    const cam = camera as THREE.PerspectiveCamera;
+    const shift = toolbarInset(toolbarRef.current, gl.domElement) * 1.5;
+    cam.setViewOffset(size.width, size.height, 0, -shift, size.width, size.height);
+    invalidate();
+    return () => cam.clearViewOffset();
+  }, [camera, gl, size, toolbarRef, invalidate]);
+
   return (
     <OrbitControls
       makeDefault
@@ -992,7 +1011,7 @@ export default function ShowroomScene({
         </>
       ) : (
         <>
-          <OrbitRig explodeFit={explodeFit} />
+          <OrbitRig explodeFit={explodeFit} toolbarRef={toolbarRef} />
           <FrameRateIndependentDamping />
           <AutoRotate enabled={animate && stoppedFor !== vehicleId} />
           <ViewTransition

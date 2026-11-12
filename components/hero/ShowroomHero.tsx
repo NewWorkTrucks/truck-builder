@@ -39,8 +39,9 @@ function FloorGrid() {
 
 export default function ShowroomHero({ 
   model,
+  theme
 }: {
-  theme?: HeroTheme;
+  theme: HeroTheme;
   /** Optional GLB URL; defaults to the catalog build shown by the chips. */
   model?: string;
 }) {

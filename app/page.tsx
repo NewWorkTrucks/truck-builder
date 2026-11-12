@@ -91,7 +91,7 @@ export default function Home() {
     <main className="landing dark flex-1 overflow-x-clip">
       <header className="landing-header">
         <Link href="/" className="landing-logo">
-          <Image src="/logo.webp" alt="New Work Trucks" width={40} height={40} priority />
+          <Image src="/logo.webp" alt="New Work Trucks" width={100} height={100} priority />
         </Link>
         <nav aria-label="Primary">
           {NAV.map((n) => (

@@ -2,21 +2,78 @@
 import { paintTargets } from "@/lib/builder";
 import { useBuilderStore } from "@/lib/builder-store";
 import { getCategory, getUpfit, getVehicle } from "@/lib/catalog";
-import { takeSnapshot } from "@/lib/spec-snapshot";
-import { useEffect, useState } from "react";
+import { registerPrint, takeSnapshot } from "@/lib/spec-snapshot";
+import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import PaintChip from "./PaintChip";
+
+type Build = ReturnType<typeof useBuilderStore.getState>["build"];
 
 /** The current build as a printable sheet. Hidden on screen; the only thing printed from the builder. */
 export default function SpecSheet() {
   const build = useBuilderStore((s) => s.build);
-  // Shot taken when printing starts (button or Ctrl/Cmd+P), so it matches the build as it is then.
-  const [image, setImage] = useState<string | null>(null);
+  const setSpecShotReady = useBuilderStore((s) => s.setSpecShotReady);
+  // Exploded-view picture and the build it shows.
+  const [shot, setShot] = useState<{ build: Build; url: string } | null>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+  // Read through a ref so the print listeners are registered once.
+  const latest = useRef({ build, shot });
   useEffect(() => {
-    const before = () => flushSync(() => setImage(takeSnapshot()));
+    latest.current = { build, shot };
+  });
+
+  // Takes a shot if the stored one isn't for the current build; synchronous, so it lands before print layout.
+  const ensureShot = () => {
+    const { build, shot } = latest.current;
+    if (shot?.build === build) return;
+    const url = takeSnapshot();
+    if (url) flushSync(() => setShot({ build, url }));
+  };
+
+  // Pre-capture: an <img> set during beforeprint can miss the print layout. Retries while the scene loads.
+  useEffect(() => {
+    let retry: ReturnType<typeof setTimeout>;
+    const attempt = () => {
+      try {
+        const url = takeSnapshot();
+        if (url) return setShot({ build, url });
+      } catch {}
+      retry = setTimeout(attempt, 500);
+    };
+    retry = setTimeout(attempt, 800);
+    return () => clearTimeout(retry);
+  }, [build]);
+
+  useEffect(() => {
+    setSpecShotReady(shot?.build === build);
+    return () => setSpecShotReady(false);
+  }, [shot, build, setSpecShotReady]);
+
+  // Ctrl/Cmd+P.
+  useEffect(() => {
+    const before = () => {
+      try {
+        ensureShot();
+      } catch {}
+    };
     window.addEventListener("beforeprint", before);
     return () => window.removeEventListener("beforeprint", before);
   }, []);
+
+  // The button. Printing straight from the click would fire beforeprint inside React's click handler,
+  // where the image misses the print layout, so leave the handler first.
+  useEffect(
+    () =>
+      registerPrint(async () => {
+        await null;
+        try {
+          ensureShot();
+          await imgRef.current?.decode().catch(() => {});
+        } catch {}
+        window.print();
+      }),
+    [],
+  );
   const rows: [string, string][] = [
     ["Vehicle", getVehicle(build.vehicleId)?.name ?? build.vehicleId],
     ...build.upfitIds.map((id): [string, string] => {
@@ -31,10 +88,11 @@ export default function SpecSheet() {
         <h1 className="text-2xl font-extrabold">New Work Trucks · Build spec sheet</h1>
         <p className="text-base">{new Date().toLocaleDateString()}</p>
       </header>
-      {image && (
+      {shot && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={image}
+          ref={imgRef}
+          src={shot.url}
           alt="The build with its parts separated"
           className="mb-6 max-h-96 w-full object-contain"
         />

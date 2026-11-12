@@ -21,6 +21,7 @@ import {
 import PaintChip from "@/components/builder/PaintChip";
 import SubmitBuildDialog from "@/components/builder/SubmitBuildDialog";
 import { Button } from "@/components/ui/button";
+import { printSpecSheet } from "@/lib/spec-snapshot";
 import { PAINT_COLORS, type PaintColorId } from "@/lib/paint";
 import { ChevronDown, CircleCheck, Info, Printer, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
@@ -146,6 +147,7 @@ const QUOTE_SENT_MS = 8000;
 export default function BuilderPanel() {
   const build = useBuilderStore((s) => s.build);
   const notices = useBuilderStore((s) => s.notices);
+  const specShotReady = useBuilderStore((s) => s.specShotReady);
   const onChangeVehicle = useBuilderStore((s) => s.changeVehicle);
   const onToggleUpfit = useBuilderStore((s) => s.toggleUpfit);
   const onSetPaint = useBuilderStore((s) => s.setPaint);
@@ -322,10 +324,11 @@ export default function BuilderPanel() {
             <Button onClick={() => setSubmitOpen(true)} className="h-12 px-5 text-base">Submit New Build</Button>
             <Button
               variant="outline"
-              onClick={() => window.print()}
+              onClick={printSpecSheet}
+              disabled={!specShotReady}
               className="h-12 px-5 text-base"
             >
-              <Printer /> Print spec sheet
+              <Printer /> {specShotReady ? "Print spec sheet" : "Preparing spec sheet…"}
             </Button>
           </div>
         </div>

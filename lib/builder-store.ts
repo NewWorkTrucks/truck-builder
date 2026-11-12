@@ -17,6 +17,9 @@ type BuilderState = {
   /** Headlights and taillights on the 3D truck. */
   lightsOn: boolean;
   setLightsOn: (on: boolean) => void;
+  /** The spec sheet's exploded-view picture matches the current build, so printing is ready. */
+  specShotReady: boolean;
+  setSpecShotReady: (ready: boolean) => void;
   dismissNotices: () => void;
 };
 
@@ -45,5 +48,7 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
   setExploded: (exploded) => set({ exploded }),
   lightsOn: false,
   setLightsOn: (lightsOn) => set({ lightsOn }),
+  specShotReady: false,
+  setSpecShotReady: (specShotReady) => set({ specShotReady }),
   dismissNotices: () => set({ notices: [] }),
 }));

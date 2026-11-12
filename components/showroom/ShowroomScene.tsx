@@ -694,7 +694,15 @@ function ViewTransition({
  * front 3/4 with every part in view. It poses the scene, draws one frame and
  * puts everything back within the same task, so the user never sees it.
  */
-function SnapshotRig({ explosion, front }: { explosion: Explosion; front: [number, number] }) {
+function SnapshotRig({
+  explosion,
+  front,
+  loaded,
+}: {
+  explosion: Explosion;
+  front: [number, number];
+  loaded: boolean;
+}) {
   const get = useThree((s) => s.get);
   useEffect(
     () =>
@@ -702,29 +710,41 @@ function SnapshotRig({ explosion, front }: { explosion: Explosion; front: [numbe
         const { gl, scene, camera, advance } = get();
         const controls = get().controls as OrbitControlsImpl | null;
         const cam = camera as THREE.PerspectiveCamera;
-        if (!controls) return null;
+        if (!controls || !loaded) return null;
         const savedPosition = cam.position.clone();
         const savedView = cam.view ? { ...cam.view } : null;
         const savedBackground = scene.background;
         const restore = explosion.pose(1);
-        // Fit from the preset direction, with no toolbar offset.
-        cam.clearViewOffset();
-        const dir = new THREE.Vector3().setFromSpherical(viewSpherical("front34", front, 1));
-        const radius = fitExplodedRadius(explosion, cam, controls.target, 1, dir);
-        cam.position.copy(dir.multiplyScalar(radius)).add(controls.target);
-        cam.lookAt(controls.target);
-        scene.background = null; // transparent: the sheet is white, not the dark room
-        advance(performance.now());
-        const image = gl.domElement.toDataURL("image/png");
-        scene.background = savedBackground;
-        restore();
-        cam.position.copy(savedPosition);
-        cam.lookAt(controls.target);
-        if (savedView) cam.setViewOffset(savedView.fullWidth, savedView.fullHeight, savedView.offsetX, savedView.offsetY, savedView.width, savedView.height);
-        advance(performance.now());
-        return image;
+        try {
+          // Fit from the preset direction, with no toolbar offset.
+          cam.clearViewOffset();
+          const dir = new THREE.Vector3().setFromSpherical(viewSpherical("front34", front, 1));
+          const radius = fitExplodedRadius(explosion, cam, controls.target, 1, dir);
+          cam.position.copy(dir.multiplyScalar(radius)).add(controls.target);
+          cam.lookAt(controls.target);
+          scene.background = null; // transparent: the sheet is white, not the dark room
+          advance(performance.now());
+          return gl.domElement.toDataURL("image/png");
+        } finally {
+          // Never leave the live view exploded or re-framed, even if drawing threw.
+          scene.background = savedBackground;
+          restore();
+          cam.position.copy(savedPosition);
+          cam.lookAt(controls.target);
+          if (savedView) {
+            cam.setViewOffset(
+              savedView.fullWidth,
+              savedView.fullHeight,
+              savedView.offsetX,
+              savedView.offsetY,
+              savedView.width,
+              savedView.height,
+            );
+          }
+          advance(performance.now());
+        }
       }),
-    [get, explosion, front],
+    [get, explosion, front, loaded],
   );
   return null;
 }
@@ -1082,7 +1102,7 @@ export default function ShowroomScene({
                 overlayRef={labelsRef}
                 toolbarRef={toolbarRef}
               />
-              {!model && <SnapshotRig explosion={explosion} front={front} />}
+              {!model && <SnapshotRig explosion={explosion} front={front} loaded={loaded} />}
             </>
           )}
         </>

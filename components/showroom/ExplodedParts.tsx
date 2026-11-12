@@ -77,6 +77,17 @@ export class Explosion {
     this.exploded = p > 0;
   }
 
+  /** Holds every part at progress `p` (as scrub) until the returned function puts the previous pose back. */
+  pose(p: number) {
+    const progress = new Map(this.progress);
+    const exploded = this.exploded;
+    this.scrub(p);
+    return () => {
+      this.progress = progress;
+      this.exploded = exploded;
+    };
+  }
+
   private get target() {
     return this.exploded ? 1 : 0;
   }

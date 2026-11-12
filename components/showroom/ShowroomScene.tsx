@@ -25,6 +25,7 @@ import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { EXPLODE_TIMING, explodePlan, type ExplodePart } from "@/lib/explode";
 import { PAINT_MATERIAL } from "@/lib/paint";
+import { registerSnapshot } from "@/lib/spec-snapshot";
 import { TRUCK_LIGHTS } from "@/lib/truck-lights";
 import { ScrollDirector, type ScrollStory } from "./ScrollDirector";
 import TruckLights, { isLightBeam } from "./TruckLights";
@@ -688,6 +689,46 @@ function ViewTransition({
   return null;
 }
 
+/**
+ * Registers a capture of the truck with its parts separated, framed from the
+ * front 3/4 with every part in view. It poses the scene, draws one frame and
+ * puts everything back within the same task, so the user never sees it.
+ */
+function SnapshotRig({ explosion, front }: { explosion: Explosion; front: [number, number] }) {
+  const get = useThree((s) => s.get);
+  useEffect(
+    () =>
+      registerSnapshot(() => {
+        const { gl, scene, camera, advance } = get();
+        const controls = get().controls as OrbitControlsImpl | null;
+        const cam = camera as THREE.PerspectiveCamera;
+        if (!controls) return null;
+        const savedPosition = cam.position.clone();
+        const savedView = cam.view ? { ...cam.view } : null;
+        const savedBackground = scene.background;
+        const restore = explosion.pose(1);
+        // Fit from the preset direction, with no toolbar offset.
+        cam.clearViewOffset();
+        const dir = new THREE.Vector3().setFromSpherical(viewSpherical("front34", front, 1));
+        const radius = fitExplodedRadius(explosion, cam, controls.target, 1, dir);
+        cam.position.copy(dir.multiplyScalar(radius)).add(controls.target);
+        cam.lookAt(controls.target);
+        scene.background = null; // transparent: the sheet is white, not the dark room
+        advance(performance.now());
+        const image = gl.domElement.toDataURL("image/png");
+        scene.background = savedBackground;
+        restore();
+        cam.position.copy(savedPosition);
+        cam.lookAt(controls.target);
+        if (savedView) cam.setViewOffset(savedView.fullWidth, savedView.fullHeight, savedView.offsetX, savedView.offsetY, savedView.width, savedView.height);
+        advance(performance.now());
+        return image;
+      }),
+    [get, explosion, front],
+  );
+  return null;
+}
+
 /** Orbit speed in rad/s (OrbitControls' autoRotateSpeed 1: one turn a minute). */
 const ORBIT_RATE = (2 * Math.PI) / 60;
 
@@ -1041,6 +1082,7 @@ export default function ShowroomScene({
                 overlayRef={labelsRef}
                 toolbarRef={toolbarRef}
               />
+              {!model && <SnapshotRig explosion={explosion} front={front} />}
             </>
           )}
         </>

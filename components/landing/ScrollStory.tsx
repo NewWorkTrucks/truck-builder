@@ -141,7 +141,7 @@ export default function ScrollStory() {
         </article>
 
         <article className="story-chapter" data-chapter data-side="bottom" data-on={active === 4 || undefined}>
-          <div className="story-card story-card-end">
+          <div className="story-card story-card-end mb-8 lg:mb-[32em] ">
             <h2>Now build yours.</h2>
             <p className="story-lede">
               Choose a vehicle, add upfits and send it to our team.

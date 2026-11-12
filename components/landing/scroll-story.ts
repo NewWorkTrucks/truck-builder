@@ -18,17 +18,17 @@ const beat = (at: number, pose: Pose): Beat => ({ at, ...pose });
 
 export const BEATS: Beat[] = [
   // Hero: the whole truck, front three-quarter, as in the old hero.
-  beat(0, { spin: -2.7, dist: 15, elev: 0.33, ty: 1.2, shift: 0.2, lift: -0.2, explode: 0 }),
+  beat(0, { spin: -2.7, dist: 12, elev: 0.33, ty: 1.2, shift: 0.2, lift: -0.2, explode: 0 }),
   // Chassis: push in on the cab, truck to the right of the text.
-  beat(0.2, { spin: -3.3, dist: 9.5, elev: 0.2, ty: 1.5, shift: -0.2, lift: 0.2, explode: 0 }),
+  beat(0.3, { spin: -3.3, dist: 9.5, elev: 0.2, ty: 1.5, shift: -0.2, lift: 0.2, explode: 0 }),
   // Upfits lift away, camera pulls back and swings to the side.
-  beat(0.4, { spin: -4.2, dist: 17, elev: 0.4, ty: 1.5, shift: 0.2, lift: 0.2, explode: 1 }),
+  beat(0.4, { spin: -4.2, dist: 15, elev: 0.4, ty: 1.5, shift: 0.1, lift: 0.2, explode: 1 }),
   // Held apart and labelled while the camera keeps turning.
-  beat(0.56, { spin: -5.0, dist: 17.5, elev: 0.45, ty: 1.5, shift: 0.2, lift: 0.2, explode: 1 }),
+  beat(0.56, { spin: -5.0, dist: 17.5, elev: 0.45, ty: 1.5, shift: 0.1, lift: 0.2, explode: 1 }),
   // Fit: back together, from the other side.
-  beat(0.76, { spin: -7.0, dist: 11.5, elev: 0.28, ty: 1.2, shift: -0.2, lift: 0.2, explode: 0 }),
+  beat(0.65, { spin: -8.0, dist: 12.5, elev: 0.28, ty: 1.2, shift: -0.20, lift: 0.2, explode: 0 }),
   // Finished truck, front three-quarter again, centred for the call to action.
-  beat(1, { spin: -2.7 - 2 * Math.PI, dist: 13.5, elev: 0.3, ty: 2.5, shift: 0, lift: 0.2, explode: 0 }),
+  beat(1, { spin: -3 - 2 * Math.PI, dist: 13.5, elev: 0, ty: 2.5, shift: 0, lift: 0.2, explode: 0 }),
 ];
 
 const smooth = (k: number) => k * k * (3 - 2 * k);

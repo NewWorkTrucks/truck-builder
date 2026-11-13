@@ -48,6 +48,7 @@ export default function HeroStage({
   className = "sh-stage",
   partColors,
   story,
+  lightsOn,
   children,
 }: {
   theme: HeroTheme;
@@ -59,6 +60,8 @@ export default function HeroStage({
   partColors?: Record<string, Record<string, string>>;
   /** Scroll drives the scene instead of drag and auto-rotate. */
   story?: ScrollStory;
+  /** Headlights and taillights; omitted, the truck has no lamps. */
+  lightsOn?: boolean;
   /** Server-rendered poster image. */
   children: ReactNode;
 }) {
@@ -127,6 +130,7 @@ export default function HeroStage({
             inputTarget={story ? null : stage}
             partColors={partColors}
             story={story}
+            lightsOn={lightsOn}
             onReady={onReady}
           />
         </SceneBoundary>

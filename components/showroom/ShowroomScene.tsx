@@ -31,6 +31,8 @@ import { TRUCK_LIGHTS } from "@/lib/truck-lights";
 import { ScrollDirector, type ScrollStory } from "./ScrollDirector";
 import TruckLights, { isLightBeam } from "./TruckLights";
 import PartOutline from "./PartOutline";
+import StoryStage from "./StoryStage";
+import Platform from "./Platform";
 import { getRenderBudget } from "@/lib/render-budget";
 import RenderStats, { statsEnabled } from "../three/RenderStats";
 import {
@@ -1137,6 +1139,7 @@ export default function ShowroomScene({
           {story && (
             <>
               <ScrollDirector story={story} spin={spin} explosion={explosion} reduced={reduced} />
+              <StoryStage />
               <ExplodeLabels
                 explosion={explosion}
                 plan={plan}
@@ -1164,6 +1167,7 @@ export default function ShowroomScene({
           {explodable && (
             <>
               <ExplodeDriver explosion={explosion} onSettled={handleSettled} />
+              <Platform explosion={explosion} />
               <ExplodeCamera
                 explosion={explosion}
                 exploded={exploded}

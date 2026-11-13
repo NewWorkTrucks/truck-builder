@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { ArrowDown, CircleCheck } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import HeroStage from "../hero/HeroStage";
 import type { ScrollStory as Story } from "../showroom/ScrollDirector";
 import { heroColors, samplePose } from "./scroll-story";
@@ -18,6 +18,9 @@ const PARTS = [
 /** Chapters in order; each lines up with a beat in scroll-story.ts. */
 const CHAPTER_COUNT = 5;
 
+/** From here on (scroll progress, 0–1) the closing shot has its headlights on. */
+const LIGHTS_ON_FROM = 0.8;
+
 /** The truck stays in its stock white. */
 const COLORS = heroColors("white");
 
@@ -29,10 +32,13 @@ const COLORS = heroColors("white");
 export default function ScrollStory() {
   const [track, setTrack] = useState<HTMLElement | null>(null);
   const [active, setActive] = useState(0);
+  const [lightsOn, setLightsOn] = useState(false);
+  // Called every frame while scrolling; React skips the render when the value is unchanged.
+  const onProgress = useCallback((p: number) => setLightsOn(p >= LIGHTS_ON_FROM), []);
 
   const story = useMemo<Story | undefined>(
-    () => (track ? { track, pose: samplePose } : undefined),
-    [track],
+    () => (track ? { track, pose: samplePose, onProgress } : undefined),
+    [track, onProgress],
   );
 
   // The chapter crossing the middle of the viewport is the one in focus.
@@ -65,6 +71,7 @@ export default function ScrollStory() {
           className="story-stage"
           partColors={COLORS}
           story={story}
+          lightsOn={lightsOn}
         >
           <></>
         </HeroStage>

@@ -16,6 +16,14 @@
   color: var(--hero-text);
 }
 
+/* The page behind the landing is dark too, so nothing light shows if the
+   content ever runs past <main> (or the page bounces at either end). Scoped
+   with :has, as this file can stay loaded after navigating to the builder. */
+html:has(main.landing),
+body:has(main.landing) {
+  background: #0a0b0d;
+}
+
 /* ---- Header ---- */
 .landing-header {
   position: fixed;

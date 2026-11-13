@@ -759,8 +759,9 @@ function ViewTransition({
 }
 
 /**
- * Registers a capture of the truck with its parts separated, framed from the
- * front 3/4 with every part in view. It poses the scene, draws one frame and
+ * Registers a capture of the truck with its racks and bumpers separated (the
+ * body stays on), framed from the front 3/4 with every part in view, and
+ * where each upfit's label goes. It poses the scene, draws one frame and
  * puts everything back within the same task, so the user never sees it.
  */
 function SnapshotRig({
@@ -783,7 +784,8 @@ function SnapshotRig({
         const savedPosition = cam.position.clone();
         const savedView = cam.view ? { ...cam.view } : null;
         const savedBackground = scene.background;
-        const restore = explosion.pose(1);
+        // The body stays on the truck; racks and bumpers lift away from it.
+        const restore = explosion.pose(1, (p) => p.role === "body");
         try {
           // Fit from the preset direction, with no toolbar offset.
           cam.clearViewOffset();
@@ -793,7 +795,8 @@ function SnapshotRig({
           cam.lookAt(controls.target);
           scene.background = null; // transparent: the sheet is white, not the dark room
           advance(performance.now());
-          return trimmedPng(gl.domElement);
+          const shot = trimmedPng(gl.domElement);
+          return { ...shot, labels: upfitLabels(explosion, cam, gl.domElement, shot) };
         } finally {
           // Never leave the live view exploded or re-framed, even if drawing threw.
           scene.background = savedBackground;
@@ -816,6 +819,29 @@ function SnapshotRig({
     [get, explosion, front, loaded],
   );
   return null;
+}
+
+const _labelAt = new THREE.Vector3();
+
+/** Each upfit's top centre, where it sits in the pose just drawn, as fractions of the cropped picture. */
+function upfitLabels(
+  explosion: Explosion,
+  camera: THREE.Camera,
+  canvas: HTMLCanvasElement,
+  crop: { left: number; top: number; width: number; height: number },
+) {
+  explosion.frame?.updateWorldMatrix(true, false);
+  return explosion.parts.flatMap((p) => {
+    const box = explosion.boxes.get(p.id);
+    if (p.role === "chassis" || !box) return [];
+    const [ox, oy, oz] = explosion.offsetOf(p);
+    box.getCenter(_labelAt).setY(box.max.y).add({ x: ox, y: oy, z: oz });
+    if (explosion.frame) _labelAt.applyMatrix4(explosion.frame.matrixWorld);
+    _labelAt.project(camera);
+    const x = ((_labelAt.x + 1) / 2) * canvas.width;
+    const y = ((1 - _labelAt.y) / 2) * canvas.height;
+    return [{ id: p.id, label: p.label, x: (x - crop.left) / crop.width, y: (y - crop.top) / crop.height }];
+  });
 }
 
 /** Orbit speed in rad/s (OrbitControls' autoRotateSpeed 1: one turn a minute). */

@@ -1,9 +1,19 @@
+/** The spec sheet's picture of the build, with where each upfit's label goes on it. */
+export type Snapshot = {
+  url: string;
+  /** Picture size in pixels. */
+  width: number;
+  height: number;
+  /** Top centre of each upfit as fractions of the picture (0–1 from its top-left); a label sits above it. */
+  labels: { id: string; label: string; x: number; y: number }[];
+};
+
 /** Lets the printable spec sheet ask the 3D builder view for a picture of the truck. */
-let capture: (() => string | null) | null = null;
+let capture: (() => Snapshot | null) | null = null;
 let printer: (() => Promise<void>) | null = null;
 
 /** Registers the scene's capture function; returns the cleanup. */
-export function registerSnapshot(fn: () => string | null) {
+export function registerSnapshot(fn: () => Snapshot | null) {
   capture = fn;
   return () => {
     if (capture === fn) capture = null;
@@ -15,7 +25,7 @@ let capturing = false;
 /** True while the spec sheet's picture is being drawn: on-screen extras (outlines) stay out of it. */
 export const isCapturing = () => capturing;
 
-/** PNG data URL of the truck with its parts separated, or null when no scene is mounted. */
+/** Picture of the truck with its parts separated, or null when no scene is mounted. */
 export function takeSnapshot() {
   capturing = true;
   try {
@@ -30,8 +40,9 @@ const TRIM_PADDING = 8;
 
 /**
  * PNG data URL of `canvas` cropped to its non-transparent pixels, so the
- * picture on the sheet carries no empty space around the truck. Read straight
- * after drawing, while the WebGL canvas still holds the frame.
+ * picture on the sheet carries no empty space around the truck, and the crop
+ * in canvas pixels. Read straight after drawing, while the WebGL canvas still
+ * holds the frame.
  */
 export function trimmedPng(canvas: HTMLCanvasElement) {
   const { width, height } = canvas;
@@ -39,7 +50,8 @@ export function trimmedPng(canvas: HTMLCanvasElement) {
   copy.width = width;
   copy.height = height;
   const ctx = copy.getContext("2d", { willReadFrequently: true });
-  if (!ctx) return canvas.toDataURL("image/png");
+  const whole = () => ({ url: canvas.toDataURL("image/png"), left: 0, top: 0, width, height });
+  if (!ctx) return whole();
   ctx.drawImage(canvas, 0, 0);
   const alpha = ctx.getImageData(0, 0, width, height).data;
   let top = height, left = width, right = -1, bottom = -1;
@@ -52,7 +64,7 @@ export function trimmedPng(canvas: HTMLCanvasElement) {
       if (x > right) right = x;
     }
   }
-  if (right < 0) return canvas.toDataURL("image/png");
+  if (right < 0) return whole();
   left = Math.max(0, left - TRIM_PADDING);
   top = Math.max(0, top - TRIM_PADDING);
   const w = Math.min(width, right + TRIM_PADDING + 1) - left;
@@ -61,7 +73,7 @@ export function trimmedPng(canvas: HTMLCanvasElement) {
   out.width = w;
   out.height = h;
   out.getContext("2d")!.drawImage(copy, left, top, w, h, 0, 0, w, h);
-  return out.toDataURL("image/png");
+  return { url: out.toDataURL("image/png"), left, top, width: w, height: h };
 }
 
 /** Registers the spec sheet's printer (it makes sure the picture is in the sheet first); returns the cleanup. */

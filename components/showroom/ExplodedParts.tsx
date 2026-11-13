@@ -22,6 +22,8 @@ export const easeInOut = (k: number) =>
  * render like the turntable's Spin. Progress is stepped by wall-clock time:
  * R3F's frame delta is not in seconds under RenderGate.
  */
+const NO_OFFSET = [0, 0, 0] as const;
+
 export class Explosion {
   exploded = false;
   parts: ExplodePart[] = [];
@@ -33,6 +35,8 @@ export class Explosion {
   private startAt = new Map<string, number>();
   private last = 0;
   private changed = false;
+  /** Parts a pose() holds mounted, as if they never moved. */
+  private held = new Set<string>();
 
   setParts(parts: ExplodePart[]) {
     this.parts = parts;
@@ -77,15 +81,29 @@ export class Explosion {
     this.exploded = p > 0;
   }
 
-  /** Holds every part at progress `p` (as scrub) until the returned function puts the previous pose back. */
-  pose(p: number) {
+  /**
+   * Holds every part at progress `p` (as scrub), except those `hold` keeps
+   * mounted, until the returned function puts the previous pose back.
+   */
+  pose(p: number, hold: (part: ExplodePart) => boolean = () => false) {
     const progress = new Map(this.progress);
     const exploded = this.exploded;
     this.scrub(p);
+    for (const q of this.parts) {
+      if (!hold(q)) continue;
+      this.progress.set(q.id, 0);
+      this.held.add(q.id);
+    }
     return () => {
       this.progress = progress;
       this.exploded = exploded;
+      this.held.clear();
     };
+  }
+
+  /** Where a part sits once fully separated, from its mount: none for a part a pose holds mounted. */
+  offsetOf(part: ExplodePart): readonly number[] {
+    return this.held.has(part.id) ? NO_OFFSET : part.offset;
   }
 
   private get target() {
@@ -738,10 +756,11 @@ export function fitExplodedRadius(
     const box = explosion.boxes.get(p.id);
     if (!box) continue;
     for (let i = 0; i < 8; i++) {
+      const offset = explosion.offsetOf(p);
       _corner.set(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z);
-      _corner.x += p.offset[0];
-      _corner.y += p.offset[1];
-      _corner.z += p.offset[2];
+      _corner.x += offset[0];
+      _corner.y += offset[1];
+      _corner.z += offset[2];
       _rel.subVectors(_corner, target);
       const along = _rel.dot(_back);
       const y = _rel.dot(_upv);

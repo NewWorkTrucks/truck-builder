@@ -579,11 +579,17 @@ const FIT_ASPECT = 1.5;
 const ZOOM = { in: 0.6, out: 1.6 };
 
 /**
- * The camera's field of view is vertical, so a tall, narrow viewport (a phone
- * in portrait) crops the truck's length. This pulls the camera back to compensate.
+ * The camera's field of view is vertical, so a narrow viewport crops the
+ * truck's length. This pulls the camera back to compensate: in proportion down
+ * to a square view, then more gently for portrait views (phones held upright),
+ * where pulling back in full left the truck small. `PORTRAIT_FIT` (0 none,
+ * 1 in full) still fits the whole truck in the side view on a tall phone; the
+ * RAM sits off the orbit centre (3.5 m behind it, 2.7 m ahead), which sets it.
  */
+const PORTRAIT_FIT = 0.7;
 const fitDistance = (aspect: number) =>
-  Math.hypot(...ORBIT_CAMERA) * Math.max(1, FIT_ASPECT / aspect);
+  Math.hypot(...ORBIT_CAMERA) *
+  (aspect >= 1 ? Math.max(1, FIT_ASPECT / aspect) : FIT_ASPECT * (1 / aspect) ** PORTRAIT_FIT);
 
 /**
  * OrbitControls fitted to the viewport, with zoom limited around that distance.
@@ -1222,14 +1228,16 @@ export default function ShowroomScene({
         ref={toolbarRef}
         role="toolbar"
         aria-label="Camera view"
-        className="absolute inset-x-0 top-3 flex flex-wrap justify-center gap-2 px-3"
+        // One row: smaller buttons below desktop so they all fit (360px and up); scrolls sideways if not.
+        // Landscape phones keep clear of the page's top-right corner button.
+        className="absolute inset-x-0 top-3 flex justify-center-safe gap-1.5 overflow-x-auto px-3 [scrollbar-width:none] max-lg:landscape:pr-16 lg:gap-2"
       >
         {VIEWS.map((v) => (
           <button
             key={v.id}
             type="button"
             onClick={() => selectView(v.id)}
-            className="min-h-12 rounded-full border bg-background/90 px-4 text-base font-semibold shadow-sm backdrop-blur transition-colors hover:border-primary focus-visible:ring-3 focus-visible:ring-ring/50 outline-none"
+            className="min-h-10 shrink-0 rounded-full border bg-background/90 px-2.5 text-sm font-semibold whitespace-nowrap shadow-sm backdrop-blur lg:min-h-12 lg:px-4 lg:text-base transition-colors hover:border-primary focus-visible:ring-3 focus-visible:ring-ring/50 outline-none"
           >
             {v.label}
           </button>
@@ -1239,7 +1247,7 @@ export default function ShowroomScene({
             type="button"
             aria-pressed={exploded}
             onClick={toggleExploded}
-            className="min-h-12 rounded-full border bg-background/90 px-4 text-base font-semibold shadow-sm backdrop-blur transition-colors hover:border-primary focus-visible:ring-3 focus-visible:ring-ring/50 outline-none aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+            className="min-h-10 shrink-0 rounded-full border bg-background/90 px-2.5 text-sm font-semibold whitespace-nowrap shadow-sm backdrop-blur lg:min-h-12 lg:px-4 lg:text-base transition-colors hover:border-primary focus-visible:ring-3 focus-visible:ring-ring/50 outline-none aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
           >
             {exploded ? "Put back together" : "Show parts"}
           </button>

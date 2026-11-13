@@ -23,7 +23,7 @@ import SubmitBuildDialog from "@/components/builder/SubmitBuildDialog";
 import { Button } from "@/components/ui/button";
 import { printSpecSheet } from "@/lib/spec-snapshot";
 import { PAINT_COLORS, type PaintColorId } from "@/lib/paint";
-import { ChevronDown, CircleCheck, Info, Printer, X } from "lucide-react";
+import { ChevronDown, CircleCheck, Info, Printer, SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
 /** Radio value for "no upfit installed" in an exclusive category. */
@@ -144,7 +144,21 @@ function PaintDropdown({
 /** How long the "quote sent" confirmation stays visible. */
 const QUOTE_SENT_MS = 8000;
 
-export default function BuilderPanel() {
+/**
+ * The build's options, its summary and the submit and print actions.
+ *
+ * Wide layouts (see globals.css) show it all as a sidebar. Compact layouts
+ * (phones upright) show a one-line summary bar with "Edit options" and
+ * "Submit"; editing (`sheetOpen`) swaps the bar for the options, so the
+ * truck stays in view above them.
+ */
+export default function BuilderPanel({
+  sheetOpen,
+  onSheetOpenChange,
+}: {
+  sheetOpen: boolean;
+  onSheetOpenChange: (open: boolean) => void;
+}) {
   const build = useBuilderStore((s) => s.build);
   const notices = useBuilderStore((s) => s.notices);
   const specShotReady = useBuilderStore((s) => s.specShotReady);
@@ -173,7 +187,7 @@ export default function BuilderPanel() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <div className="flex flex-col gap-5 p-5">
+      <div id="builder-options" className={`flex flex-col gap-5 p-5 ${sheetOpen ? "" : "compact:hidden"}`}>
         <Field
           title="Vehicle"
           value={getVehicle(build.vehicleId)?.name ?? ""}
@@ -285,9 +299,9 @@ export default function BuilderPanel() {
 
       </div>
 
-      <section className="sticky bottom-0 mt-auto border-t bg-background/95 p-5 backdrop-blur">
+      <section className="sticky bottom-0 mt-auto border-t bg-background/95 p-5 backdrop-blur compact:px-4 compact:py-3 max-lg:landscape:static">
         {quoteSent && (
-          <Alert role="status" className="mb-4 border-primary/30 bg-primary/5 pr-14 text-base">
+          <Alert role="status" className="mb-4 border-primary/30 bg-primary/5 pr-14 text-base compact:mb-3">
             <CircleCheck className="text-primary" />
             <AlertDescription>
               Quote request sent. Our team will be in touch.
@@ -301,7 +315,47 @@ export default function BuilderPanel() {
             </button>
           </Alert>
         )}
-        <div className="flex flex-row gap-2 justify-between items-center">
+        {/* Compact: the summary bar, or Done and Print while the options are open. */}
+        <div className="flex items-center gap-2 wide:hidden">
+          {sheetOpen ? (
+            <>
+              <Button
+                variant="outline"
+                onClick={printSpecSheet}
+                disabled={!specShotReady}
+                aria-label={specShotReady ? "Print spec sheet" : "Preparing spec sheet"}
+                className="h-12 px-4 text-base"
+              >
+                <Printer />
+              </Button>
+              <Button onClick={() => onSheetOpenChange(false)} className="h-12 flex-1 text-base">
+                Done
+              </Button>
+            </>
+          ) : (
+            <>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-base font-bold">{getVehicle(build.vehicleId)?.name}</p>
+                <p className="truncate text-sm text-muted-foreground">
+                  {build.upfitIds.length ? nameList(build.upfitIds) : "No upfits"}
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => onSheetOpenChange(true)}
+                aria-expanded={false}
+                aria-controls="builder-options"
+                className="h-12 px-3 text-base"
+              >
+                <SlidersHorizontal /> Edit
+              </Button>
+              <Button onClick={() => setSubmitOpen(true)} className="h-12 px-4 text-base">
+                Submit
+              </Button>
+            </>
+          )}
+        </div>
+        <div className="flex flex-row gap-2 justify-between items-center compact:hidden max-lg:landscape:flex-col max-lg:landscape:items-stretch">
           <div>
             <h2 className="text-base font-semibold uppercase tracking-wider text-muted-foreground">
               Your build

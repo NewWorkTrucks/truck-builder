@@ -4,6 +4,20 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Builder layouts. "wide": the options sit beside the truck (large screens, and
+   any landscape screen, e.g. a phone on its side). "compact": the rest (phones
+   and tablets held upright), where the options open below the truck on demand. */
+@custom-variant wide {
+  @media (width >= 64rem) or (orientation: landscape) {
+    @slot;
+  }
+}
+@custom-variant compact {
+  @media (width < 64rem) and (orientation: portrait) {
+    @slot;
+  }
+}
+
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);

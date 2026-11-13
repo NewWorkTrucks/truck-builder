@@ -9,9 +9,22 @@ import PaintChip from "./PaintChip";
 
 type Build = ReturnType<typeof useBuilderStore.getState>["build"];
 
-/** The current build as a printable sheet. Hidden on screen; the only thing printed from the builder. */
-export default function SpecSheet() {
-  const build = useBuilderStore((s) => s.build);
+/**
+ * The current build as a printable sheet. Hidden on screen; the only thing printed from the builder.
+ * With `preview`, prints that fixed build instead, headed with its quote's request ID.
+ * `showPaint` false leaves out the paint rows (a quote that recorded no colors).
+ */
+export default function SpecSheet({
+  preview,
+  requestId,
+  showPaint = true,
+}: {
+  preview?: Build;
+  requestId?: string;
+  showPaint?: boolean;
+}) {
+  const storeBuild = useBuilderStore((s) => s.build);
+  const build = preview ?? storeBuild;
   const setSpecShotReady = useBuilderStore((s) => s.setSpecShotReady);
   // Exploded-view picture and the build it shows.
   const [shot, setShot] = useState<{ build: Build; url: string } | null>(null);
@@ -86,7 +99,10 @@ export default function SpecSheet() {
     <article className="hidden p-8 text-black print:block">
       <header className="mb-6 border-b-2 border-black pb-3">
         <h1 className="text-2xl font-extrabold">New Work Trucks · Build spec sheet</h1>
-        <p className="text-base">{new Date().toLocaleDateString()}</p>
+        <p className="text-base">
+          {requestId && <>Request ID {requestId} · </>}
+          {new Date().toLocaleDateString()}
+        </p>
       </header>
       {shot && (
         // eslint-disable-next-line @next/next/no-img-element
@@ -105,17 +121,18 @@ export default function SpecSheet() {
               <td className="py-2">{value}</td>
             </tr>
           ))}
-          {paintTargets(build).map(({ id, label, color }) => (
-            <tr key={id} className="border-b">
-              <th className="w-48 py-2 text-left font-semibold">{label}</th>
-              <td className="py-2">
-                <span className="flex items-center gap-2">
-                  <PaintChip hex={color.hex} />
-                  {color.name} ({color.hex})
-                </span>
-              </td>
-            </tr>
-          ))}
+          {showPaint &&
+            paintTargets(build).map(({ id, label, color }) => (
+              <tr key={id} className="border-b">
+                <th className="w-48 py-2 text-left font-semibold">{label}</th>
+                <td className="py-2">
+                  <span className="flex items-center gap-2">
+                    <PaintChip hex={color.hex} />
+                    {color.name} ({color.hex})
+                  </span>
+                </td>
+              </tr>
+            ))}
         </tbody>
       </table>
     </article>

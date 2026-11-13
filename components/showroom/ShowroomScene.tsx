@@ -97,6 +97,8 @@ type Props = {
   exploded?: boolean;
   /** Shows the "Show parts" toggle in the orbit toolbar. */
   onExplodedChange?: (exploded: boolean) => void;
+  /** Orbit only: shows the camera-view toolbar. Defaults to true. */
+  cameraViews?: boolean;
   /** Optional GLB URL replacing the catalog build. */
   model?: string;
   theme: HeroTheme;
@@ -852,6 +854,7 @@ export default function ShowroomScene({
   partColors,
   exploded = false,
   onExplodedChange,
+  cameraViews = true,
   model,
   theme,
   lightsTheme = theme,
@@ -1128,7 +1131,7 @@ export default function ShowroomScene({
       </Suspense>
     </Canvas>
     {explodable && <LabelOverlay plan={plan} overlayRef={labelsRef} theme={theme} />}
-    {!turntable && (
+    {!turntable && cameraViews && (
       <div
         ref={toolbarRef}
         role="toolbar"

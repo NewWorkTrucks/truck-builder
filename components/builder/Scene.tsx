@@ -1,7 +1,7 @@
 "use client";
 import { useBuilderStore } from "@/lib/builder-store";
 import { getVehicle } from "@/lib/catalog";
-import { paintTargets } from "@/lib/builder";
+import { paintTargets, type Build } from "@/lib/builder";
 import { PAINT_MATERIAL } from "@/lib/paint";
 import { useProgress } from "@react-three/drei";
 import { useMemo, useState } from "react";
@@ -28,13 +28,19 @@ const LoadingOverlay = () => {
   );
 };
 
-export default function Scene() {
-  const vehicleId = useBuilderStore((s) => s.build.vehicleId);
-  const upfitIds = useBuilderStore((s) => s.build.upfitIds);
-  const build = useBuilderStore((s) => s.build);
-  const exploded = useBuilderStore((s) => s.exploded);
+/**
+ * The 3D truck. Shows the builder's current build, or with `preview`, a fixed
+ * build with no on-screen controls (drag to rotate still works).
+ */
+export default function Scene({ preview }: { preview?: Build }) {
+  const storeBuild = useBuilderStore((s) => s.build);
+  const build = preview ?? storeBuild;
+  const { vehicleId, upfitIds } = build;
+  const storeExploded = useBuilderStore((s) => s.exploded);
   const setExploded = useBuilderStore((s) => s.setExploded);
-  const lightsOn = useBuilderStore((s) => s.lightsOn);
+  const storeLightsOn = useBuilderStore((s) => s.lightsOn);
+  const exploded = !preview && storeExploded;
+  const lightsOn = !preview && storeLightsOn;
   const [ready, setReady] = useState(false);
   // Catalog id -> its paint material's sRGB hex, e.g. { "ram-696j-body": { "upfit-paint": "#1F5EFF" } }.
   const partColors = useMemo(
@@ -59,8 +65,9 @@ export default function Scene() {
           upfitIds={upfitIds}
           partColors={partColors}
           exploded={exploded}
-          onExplodedChange={setExploded}
+          onExplodedChange={preview ? undefined : setExploded}
           lightsOn={lightsOn}
+          cameraViews={!preview}
           interaction="orbit"
           theme="light"
           lightsTheme="dark"

@@ -1,3 +1,4 @@
+import Form from "next/form";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -16,6 +17,7 @@ const NAV = [
   { href: "#services", label: "Services" },
   { href: "#upfits", label: "Upfits" },
   { href: "#faq", label: "FAQ" },
+  { href: "#track-quote", label: "My quote" },
 ];
 
 const pill =
@@ -209,6 +211,32 @@ export default function Home() {
               </details>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section id="track-quote" className="relative isolate scroll-mt-16 overflow-hidden">
+        <div className="mx-auto max-w-3xl px-4 py-24 sm:px-8">
+          <SectionHeading eyebrow="Already submitted?" title="See your quoted build." />
+          <p className="mt-4 text-lg text-[#a9b1bd]">
+            Enter the request ID from your quote to view your truck in 3D.
+          </p>
+          <Form action="/preview" className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <label htmlFor="quote-ref" className="sr-only">
+              Request ID
+            </label>
+            <input
+              id="quote-ref"
+              name="ref"
+              required
+              maxLength={64}
+              autoComplete="off"
+              placeholder="e.g. TB-20005"
+              className="min-h-14 flex-1 rounded-full border border-white/15 bg-white/[0.04] px-6 text-lg text-white placeholder:text-[#8693a6] outline-none focus-visible:border-[#3ea6ff] focus-visible:ring-3 focus-visible:ring-[#3ea6ff]/40"
+            />
+            <button type="submit" className={`${pill} bg-[#3ea6ff] font-bold text-[#04121f]`}>
+              View my build
+            </button>
+          </Form>
         </div>
       </section>
 

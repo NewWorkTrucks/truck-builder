@@ -142,3 +142,8 @@
     @apply font-sans;
   }
 }
+/* No page margin: browsers then leave out their printed header and footer
+   (the page's address, title and date). The spec sheet pads each page itself. */
+@page {
+  margin: 0;
+}

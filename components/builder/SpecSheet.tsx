@@ -2,26 +2,25 @@
 import { paintTargets } from "@/lib/builder";
 import { useBuilderStore } from "@/lib/builder-store";
 import { getCategory, getUpfit, getVehicle } from "@/lib/catalog";
+import { submittedOn, type QuotePreview } from "@/lib/quote-log";
 import { registerPrint, takeSnapshot, type Snapshot } from "@/lib/spec-snapshot";
-import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { flushSync } from "react-dom";
 import PaintChip from "./PaintChip";
 
 type Build = ReturnType<typeof useBuilderStore.getState>["build"];
 
 /**
- * A quote's build as a printable sheet, headed with its request ID. Hidden on
- * screen; the only thing printed from the page. `showPaint` false leaves out
- * the paint rows (a quote that recorded no colors).
+ * A quote's build as a printable sheet: the picture, each item with its paint,
+ * then the customer and delivery address. Hidden on screen; the only thing
+ * printed from the page. A quote that recorded no colors has no paint column.
  */
 export default function SpecSheet({
   build,
-  requestId,
-  showPaint = true,
+  quote,
 }: {
   build: Build;
-  requestId?: string;
-  showPaint?: boolean;
+  quote: QuotePreview;
 }) {
   const setSpecShotReady = useBuilderStore((s) => s.setSpecShotReady);
   // Exploded-view picture and the build it shows.
@@ -71,6 +70,26 @@ export default function SpecSheet({
     return () => window.removeEventListener("beforeprint", before);
   }, []);
 
+  // "Save as PDF" names the file after the page title: use the sheet's name while it prints.
+  useEffect(() => {
+    let saved: string | null = null;
+    const before = () => {
+      saved ??= document.title;
+      document.title = specSheetName(quote);
+    };
+    const after = () => {
+      if (saved !== null) document.title = saved;
+      saved = null;
+    };
+    window.addEventListener("beforeprint", before);
+    window.addEventListener("afterprint", after);
+    return () => {
+      after();
+      window.removeEventListener("beforeprint", before);
+      window.removeEventListener("afterprint", after);
+    };
+  }, [quote]);
+
   // The button. Printing straight from the click would fire beforeprint inside React's click handler,
   // where the image misses the print layout, so leave the handler first.
   useEffect(
@@ -85,55 +104,105 @@ export default function SpecSheet({
       }),
     [],
   );
-  const rows: [string, string][] = [
-    ["Vehicle", getVehicle(build.vehicleId)?.name ?? build.vehicleId],
-    ...build.upfitIds.map((id): [string, string] => {
+  // Painted parts by id; unpainted upfits (e.g. bumpers) have none.
+  const showPaint = quote.paint !== null;
+  const paint = new Map(paintTargets(build).map((t) => [t.id, t.color]));
+  const rows = [
+    { id: build.vehicleId, category: "Vehicle", name: getVehicle(build.vehicleId)?.name ?? build.vehicleId },
+    ...build.upfitIds.map((id) => {
       const upfit = getUpfit(id);
-      return [upfit ? getCategory(upfit.category).label : "Upfit", upfit?.name ?? id];
+      return { id, category: upfit ? getCategory(upfit.category).label : "Upfit", name: upfit?.name ?? id };
     }),
+  ];
+  const { profile } = quote;
+  const customer: [string, string][] = [
+    ["Name", `${profile.firstName} ${profile.lastName}`],
+    ["Company", profile.companyName],
+    ["Email", profile.email],
+    ["Phone", profile.phone],
   ];
 
   return (
-    <article className="relative isolate hidden p-8 text-black print:block">
-      {/* Watermark: fixed, so it sits in the middle of every printed page, behind the content. */}
+    <article
+      // The page has no margin (globals.css): this padding repeats on every printed page instead.
+      className="relative isolate hidden box-decoration-clone p-10 text-black print:block"
+    >
+      {/* Watermark: fixed, so it sits in the middle of every printed page, rising
+          across it and laid over everything, like a stamped document. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/logo-black.webp"
         alt=""
         aria-hidden
-        className="pointer-events-none fixed top-1/2 left-1/2 -z-10 w-2/3 -translate-x-1/2 -translate-y-1/2 opacity-10"
+        className="pointer-events-none fixed top-1/2 left-1/2 z-50 w-[90%] -translate-x-1/2 -translate-y-1/2 -rotate-[45deg] opacity-10"
       />
       <header className="mb-6 border-b-2 border-black pb-3">
         <h1 className="text-2xl font-extrabold">New Work Trucks · Build spec sheet</h1>
         <p className="text-base">
-          {requestId && <>Request ID {requestId} · </>}
-          {new Date().toLocaleDateString()}
+          Request ID {quote.request_id} · Submitted {submittedOn(quote.created_at)}
         </p>
       </header>
       {shot && <Picture snap={shot.snap} imgRef={imgRef} />}
       <table className="w-full text-lg">
         <tbody>
-          {rows.map(([label, value], i) => (
-            <tr key={i} className="border-b">
-              <th className="w-48 py-2 text-left font-semibold">{label}</th>
-              <td className="py-2">{value}</td>
-            </tr>
-          ))}
-          {showPaint &&
-            paintTargets(build).map(({ id, label, color }) => (
+          {rows.map(({ id, category, name }) => {
+            const color = paint.get(id);
+            return (
               <tr key={id} className="border-b">
-                <th className="w-48 py-2 text-left font-semibold">{label}</th>
-                <td className="py-2">
-                  <span className="flex items-center gap-2">
-                    <PaintChip hex={color.hex} />
-                    {color.name} ({color.hex})
-                  </span>
-                </td>
+                <th className="w-48 py-2 text-left font-semibold">{category}</th>
+                <td className="py-2">{name}</td>
+                {showPaint && (
+                  <td className="py-2">
+                    {color && (
+                      <span className="flex items-center gap-2">
+                        <PaintChip hex={color.hex} />
+                        {color.name} <span className="text-neutral-600">{color.hex}</span>
+                      </span>
+                    )}
+                  </td>
+                )}
               </tr>
-            ))}
+            );
+          })}
         </tbody>
       </table>
+      <SheetSection title="Customer">
+        <table className="w-full text-lg">
+          <tbody>
+            {customer.map(([label, value]) => (
+              <tr key={label} className="border-b">
+                <th className="w-48 py-2 text-left font-semibold">{label}</th>
+                <td className="py-2 break-all">{value}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </SheetSection>
+      <SheetSection title="Delivery address">
+        <p className="py-2 text-lg">{quote.deliveryAddress}</p>
+      </SheetSection>
     </article>
+  );
+}
+
+/**
+ * The saved PDF's name, e.g. "NWT Spec Sheet TB-20005 - Acme Fleet - RAM 2500HD CC".
+ * Characters that file systems reject become dashes; an empty company is left out.
+ */
+function specSheetName(quote: QuotePreview) {
+  const clean = (s: string) => s.replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, " ").trim();
+  return [`NWT Spec Sheet ${clean(quote.request_id)}`, clean(quote.profile.companyName), clean(quote.truck_name)]
+    .filter(Boolean)
+    .join(" - ");
+}
+
+/** A headed block under the build table, kept whole on one page. */
+function SheetSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="mt-6 break-inside-avoid">
+      <h2 className="border-b-2 border-black pb-1 text-sm font-semibold tracking-wider uppercase">{title}</h2>
+      {children}
+    </section>
   );
 }
 

@@ -6,15 +6,10 @@ import SpecSheet from "@/components/builder/SpecSheet";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import type { Build } from "@/lib/builder";
 import { useBuilderStore } from "@/lib/builder-store";
-import type { QuoteLog } from "@/lib/quote-log";
+import { submittedOn, type QuotePreview } from "@/lib/quote-log";
 import { printSpecSheet } from "@/lib/spec-snapshot";
 import { ClipboardList, Lightbulb, PanelRightClose, PanelRightOpen, Printer, Rotate3d, X } from "lucide-react";
 import { useState } from "react";
-
-export type QuotePreview = Omit<QuoteLog, "id" | "public">;
-
-const submittedOn = (iso: string) =>
-  new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(iso));
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -113,7 +108,7 @@ export default function PreviewClient({
 
   return (
     <>
-      {printable && <SpecSheet build={build} requestId={quote.request_id} showPaint={quote.paint !== null} />}
+      {printable && <SpecSheet build={build} quote={quote} />}
       <div className="flex h-dvh w-full flex-col print:hidden">
         <BuilderHeader title={quote.truck_name} />
         <main className="relative min-h-0 flex-1 overflow-hidden bg-gradient-to-b from-primary/10 to-background">

@@ -23,6 +23,13 @@ export type QuoteLog = {
   public: boolean;
 };
 
+/** A quote as the preview page and its spec sheet show it. */
+export type QuotePreview = Omit<QuoteLog, "id" | "public">;
+
+/** The day a quote was submitted, as "Nov 14, 2026". */
+export const submittedOn = (iso: string) =>
+  new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(iso));
+
 /** Request ids are short codes like "TB-20005"; anything else can't match. */
 const REF_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 

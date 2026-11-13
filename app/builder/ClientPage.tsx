@@ -2,7 +2,6 @@
 import BuilderHeader from "@/components/builder/BuilderHeader";
 import BuilderPanel from "@/components/builder/BuilderPanel";
 import Scene from "@/components/builder/Scene";
-import SpecSheet from "@/components/builder/SpecSheet";
 import { useBuilderStore } from "@/lib/builder-store";
 import { getVehicle } from "@/lib/catalog";
 import { Lightbulb, PanelRightClose, PanelRightOpen, Rotate3d } from "lucide-react";
@@ -37,8 +36,6 @@ export default function TruckBuilder() {
   const setLightsOn = useBuilderStore((s) => s.setLightsOn);
 
   return (
-    <>
-    <SpecSheet />
     <div className="flex h-dvh w-full flex-col print:hidden">
       <BuilderHeader title={getVehicle(vehicleId)?.name} />
 
@@ -89,6 +86,5 @@ export default function TruckBuilder() {
         </aside>
       </div>
     </div>
-    </>
   );
 }

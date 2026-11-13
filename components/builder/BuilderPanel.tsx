@@ -21,9 +21,8 @@ import {
 import PaintChip from "@/components/builder/PaintChip";
 import SubmitBuildDialog from "@/components/builder/SubmitBuildDialog";
 import { Button } from "@/components/ui/button";
-import { printSpecSheet } from "@/lib/spec-snapshot";
 import { PAINT_COLORS, type PaintColorId } from "@/lib/paint";
-import { ChevronDown, CircleCheck, Info, Printer, SlidersHorizontal, X } from "lucide-react";
+import { ChevronDown, CircleCheck, Info, SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
 /** Radio value for "no upfit installed" in an exclusive category. */
@@ -145,9 +144,9 @@ function PaintDropdown({
 const QUOTE_SENT_MS = 8000;
 
 /**
- * The build's options, its summary and the submit and print actions.
+ * The build's options and the submit action.
  *
- * Wide layouts (see globals.css) show it all as a sidebar. Compact layouts
+ * Wide layouts (see globals.css) show them as a sidebar. Compact layouts
  * (phones upright) show a one-line summary bar with "Edit options" and
  * "Submit"; editing (`sheetOpen`) swaps the bar for the options, so the
  * truck stays in view above them.
@@ -161,7 +160,6 @@ export default function BuilderPanel({
 }) {
   const build = useBuilderStore((s) => s.build);
   const notices = useBuilderStore((s) => s.notices);
-  const specShotReady = useBuilderStore((s) => s.specShotReady);
   const onChangeVehicle = useBuilderStore((s) => s.changeVehicle);
   const onToggleUpfit = useBuilderStore((s) => s.toggleUpfit);
   const onSetPaint = useBuilderStore((s) => s.setPaint);
@@ -315,23 +313,12 @@ export default function BuilderPanel({
             </button>
           </Alert>
         )}
-        {/* Compact: the summary bar, or Done and Print while the options are open. */}
+        {/* Compact: the summary bar, or Done while the options are open. */}
         <div className="flex items-center gap-2 wide:hidden">
           {sheetOpen ? (
-            <>
-              <Button
-                variant="outline"
-                onClick={printSpecSheet}
-                disabled={!specShotReady}
-                aria-label={specShotReady ? "Print spec sheet" : "Preparing spec sheet"}
-                className="h-12 px-4 text-base"
-              >
-                <Printer />
-              </Button>
-              <Button onClick={() => onSheetOpenChange(false)} className="h-12 flex-1 text-base">
-                Done
-              </Button>
-            </>
+            <Button onClick={() => onSheetOpenChange(false)} className="h-12 flex-1 text-base">
+              Done
+            </Button>
           ) : (
             <>
               <div className="min-w-0 flex-1">
@@ -355,37 +342,9 @@ export default function BuilderPanel({
             </>
           )}
         </div>
-        <div className="flex flex-row gap-2 justify-between items-center compact:hidden max-lg:landscape:flex-col max-lg:landscape:items-stretch">
-          <div>
-            <h2 className="text-base font-semibold uppercase tracking-wider text-muted-foreground">
-              Your build
-            </h2>
-            <p className="mt-1 text-lg font-bold">
-              {getVehicle(build.vehicleId)?.name}
-            </p>
-            <p className="text-base text-muted-foreground">
-              {build.upfitIds.length
-                ? nameList(build.upfitIds)
-                : "Stock vehicle, no upfits."}
-            </p>
-            <p className="text-base text-muted-foreground">
-              {paintTargets(build)
-                .map(({ label, color }) => `${label}: ${color.name}`)
-                .join(" · ")}
-            </p>
-          </div>
-          <div className="flex shrink-0 flex-col gap-2">
-            <Button onClick={() => setSubmitOpen(true)} className="h-12 px-5 text-base">Submit New Build</Button>
-            <Button
-              variant="outline"
-              onClick={printSpecSheet}
-              disabled={!specShotReady}
-              className="h-12 px-5 text-base"
-            >
-              <Printer /> {specShotReady ? "Print spec sheet" : "Preparing spec sheet…"}
-            </Button>
-          </div>
-        </div>
+        <Button onClick={() => setSubmitOpen(true)} className="h-12 px-5 text-base compact:hidden">
+          Submit New Build
+        </Button>
         <SubmitBuildDialog
           open={submitOpen}
           onOpenChange={setSubmitOpen}

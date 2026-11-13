@@ -94,7 +94,16 @@ function QuoteDetails({ quote }: { quote: QuotePreview }) {
 const roundButton =
   "flex min-h-12 items-center justify-center gap-2 rounded-full border bg-background/90 shadow-sm backdrop-blur transition-colors outline-none hover:border-primary focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60";
 
-export default function PreviewClient({ build, quote }: { build: Build; quote: QuotePreview }) {
+/** `printable` adds the spec sheet and its print button (`?printable=true`). */
+export default function PreviewClient({
+  build,
+  quote,
+  printable,
+}: {
+  build: Build;
+  quote: QuotePreview;
+  printable: boolean;
+}) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   // Desktop card; the scene narrows to sit beside it while it's open.
   const [cardOpen, setCardOpen] = useState(true);
@@ -104,7 +113,7 @@ export default function PreviewClient({ build, quote }: { build: Build; quote: Q
 
   return (
     <>
-      <SpecSheet preview={build} requestId={quote.request_id} showPaint={quote.paint !== null} />
+      {printable && <SpecSheet build={build} requestId={quote.request_id} showPaint={quote.paint !== null} />}
       <div className="flex h-dvh w-full flex-col print:hidden">
         <BuilderHeader title={quote.truck_name} />
         <main className="relative min-h-0 flex-1 overflow-hidden bg-gradient-to-b from-primary/10 to-background">
@@ -144,19 +153,21 @@ export default function PreviewClient({ build, quote }: { build: Build; quote: Q
               >
                 <Lightbulb className="size-5" aria-hidden />
               </button>
-              <button
-                type="button"
-                onClick={printSpecSheet}
-                disabled={!specShotReady}
-                aria-label={specShotReady ? "Print spec sheet" : "Preparing spec sheet"}
-                title={specShotReady ? "Print spec sheet" : "Preparing spec sheet…"}
-                className={`${roundButton} max-lg:size-12 lg:px-5 lg:text-base lg:font-semibold`}
-              >
-                <Printer className="size-5" aria-hidden />
-                <span className="max-lg:hidden">
-                  {specShotReady ? "Print spec sheet" : "Preparing spec sheet…"}
-                </span>
-              </button>
+              {printable && (
+                <button
+                  type="button"
+                  onClick={printSpecSheet}
+                  disabled={!specShotReady}
+                  aria-label={specShotReady ? "Print spec sheet" : "Preparing spec sheet"}
+                  title={specShotReady ? "Print spec sheet" : "Preparing spec sheet…"}
+                  className={`${roundButton} max-lg:size-12 lg:px-5 lg:text-base lg:font-semibold`}
+                >
+                  <Printer className="size-5" aria-hidden />
+                  <span className="max-lg:hidden">
+                    {specShotReady ? "Print spec sheet" : "Preparing spec sheet…"}
+                  </span>
+                </button>
+              )}
             </div>
           </div>
 

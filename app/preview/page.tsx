@@ -32,7 +32,7 @@ function QuoteError({ title, message }: { title: string; message: string }) {
 }
 
 export default async function PreviewPage({ searchParams }: PageProps<"/preview">) {
-  const { ref } = await searchParams;
+  const { ref, printable } = await searchParams;
   const value = typeof ref === "string" ? ref.trim() : "";
   if (!value) {
     return <QuoteError title="No quote ID" message="Enter a request ID to preview a quote." />;
@@ -64,6 +64,7 @@ export default async function PreviewPage({ searchParams }: PageProps<"/preview"
     <PreviewClient
       build={build}
       quote={{ request_id, truck_name, upfit_requirements, paint, profile, deliveryAddress, created_at }}
+      printable={printable === "true"}
     />
   );
 }

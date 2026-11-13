@@ -10,21 +10,19 @@ import PaintChip from "./PaintChip";
 type Build = ReturnType<typeof useBuilderStore.getState>["build"];
 
 /**
- * The current build as a printable sheet. Hidden on screen; the only thing printed from the builder.
- * With `preview`, prints that fixed build instead, headed with its quote's request ID.
- * `showPaint` false leaves out the paint rows (a quote that recorded no colors).
+ * A quote's build as a printable sheet, headed with its request ID. Hidden on
+ * screen; the only thing printed from the page. `showPaint` false leaves out
+ * the paint rows (a quote that recorded no colors).
  */
 export default function SpecSheet({
-  preview,
+  build,
   requestId,
   showPaint = true,
 }: {
-  preview?: Build;
+  build: Build;
   requestId?: string;
   showPaint?: boolean;
 }) {
-  const storeBuild = useBuilderStore((s) => s.build);
-  const build = preview ?? storeBuild;
   const setSpecShotReady = useBuilderStore((s) => s.setSpecShotReady);
   // Exploded-view picture and the build it shows.
   const [shot, setShot] = useState<{ build: Build; snap: Snapshot } | null>(null);

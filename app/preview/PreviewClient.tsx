@@ -8,7 +8,7 @@ import type { Build } from "@/lib/builder";
 import { useBuilderStore } from "@/lib/builder-store";
 import type { QuoteLog } from "@/lib/quote-log";
 import { printSpecSheet } from "@/lib/spec-snapshot";
-import { ClipboardList, PanelRightClose, PanelRightOpen, Printer, Rotate3d, X } from "lucide-react";
+import { ClipboardList, Lightbulb, PanelRightClose, PanelRightOpen, Printer, Rotate3d, X } from "lucide-react";
 import { useState } from "react";
 
 export type QuotePreview = Omit<QuoteLog, "id" | "public">;
@@ -99,6 +99,8 @@ export default function PreviewClient({ build, quote }: { build: Build; quote: Q
   // Desktop card; the scene narrows to sit beside it while it's open.
   const [cardOpen, setCardOpen] = useState(true);
   const specShotReady = useBuilderStore((s) => s.specShotReady);
+  const lightsOn = useBuilderStore((s) => s.lightsOn);
+  const setLightsOn = useBuilderStore((s) => s.setLightsOn);
 
   return (
     <>
@@ -130,19 +132,32 @@ export default function PreviewClient({ build, quote }: { build: Build; quote: Q
                 <PanelRightOpen className="size-5" aria-hidden />
               )}
             </button>
-            <button
-              type="button"
-              onClick={printSpecSheet}
-              disabled={!specShotReady}
-              aria-label={specShotReady ? "Print spec sheet" : "Preparing spec sheet"}
-              title={specShotReady ? "Print spec sheet" : "Preparing spec sheet…"}
-              className={`${roundButton} absolute right-3 bottom-3 max-lg:size-12 lg:px-5 lg:text-base lg:font-semibold`}
-            >
-              <Printer className="size-5" aria-hidden />
-              <span className="max-lg:hidden">
-                {specShotReady ? "Print spec sheet" : "Preparing spec sheet…"}
-              </span>
-            </button>
+            {/* Stacked on phones (the details button takes the bottom middle), side by side on desktop. */}
+            <div className="absolute right-3 bottom-3 flex flex-col items-end gap-2 lg:flex-row">
+              <button
+                type="button"
+                aria-pressed={lightsOn}
+                aria-label="Truck lights"
+                title={lightsOn ? "Turn lights off" : "Turn lights on"}
+                onClick={() => setLightsOn(!lightsOn)}
+                className={`${roundButton} size-12 aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground`}
+              >
+                <Lightbulb className="size-5" aria-hidden />
+              </button>
+              <button
+                type="button"
+                onClick={printSpecSheet}
+                disabled={!specShotReady}
+                aria-label={specShotReady ? "Print spec sheet" : "Preparing spec sheet"}
+                title={specShotReady ? "Print spec sheet" : "Preparing spec sheet…"}
+                className={`${roundButton} max-lg:size-12 lg:px-5 lg:text-base lg:font-semibold`}
+              >
+                <Printer className="size-5" aria-hidden />
+                <span className="max-lg:hidden">
+                  {specShotReady ? "Print spec sheet" : "Preparing spec sheet…"}
+                </span>
+              </button>
+            </div>
           </div>
 
           <aside

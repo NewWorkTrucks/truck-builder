@@ -96,7 +96,15 @@ export default function SpecSheet({
   ];
 
   return (
-    <article className="hidden p-8 text-black print:block">
+    <article className="relative isolate hidden p-8 text-black print:block">
+      {/* Watermark: fixed, so it sits in the middle of every printed page, behind the content. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/logo-black.webp"
+        alt=""
+        aria-hidden
+        className="pointer-events-none fixed top-1/2 left-1/2 -z-10 w-2/3 -translate-x-1/2 -translate-y-1/2 opacity-10"
+      />
       <header className="mb-6 border-b-2 border-black pb-3">
         <h1 className="text-2xl font-extrabold">New Work Trucks · Build spec sheet</h1>
         <p className="text-base">

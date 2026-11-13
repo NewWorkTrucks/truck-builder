@@ -10,7 +10,7 @@ export default function BuilderHeader({ title }: { title?: string }) {
         className="flex items-center gap-2 font-extrabold"
         aria-label="New Work Trucks home"
       >
-        <Image src="/logo.webp" alt="" width={40} height={40} className="size-10 object-contain" />
+        <Image src="/logo-black.webp" alt="" width={40} height={40} className="size-10 object-contain" />
         <span className="hidden sm:inline">New Work Trucks</span>
       </Link>
       <span aria-hidden className="h-5 w-px bg-border" />

@@ -114,6 +114,9 @@ export default function SpecSheet({
       return { id, category: upfit ? getCategory(upfit.category).label : "Upfit", name: upfit?.name ?? id };
     }),
   ];
+  // Upfits are numbered in table order: the picture's markers, the table and the legend agree.
+  const numbers = useMemo(() => new Map(build.upfitIds.map((id, i) => [id, i + 1])), [build.upfitIds]);
+  const upfitRows = rows.filter((r) => numbers.has(r.id));
   const { profile } = quote;
   const customer: [string, string][] = [
     ["Name", `${profile.firstName} ${profile.lastName}`],
@@ -124,8 +127,9 @@ export default function SpecSheet({
 
   return (
     <article
-      // The page has no margin (globals.css): this padding repeats on every printed page instead.
-      className="relative isolate hidden box-decoration-clone p-10 text-black print:block"
+      // The page has no margin (globals.css): this padding repeats on every printed page instead,
+      // with room at the bottom for the legend.
+      className="relative isolate hidden box-decoration-clone p-8 pb-24 text-black print:block"
     >
       {/* Watermark: fixed, so it sits in the middle of every printed page, rising
           across it and laid over everything, like a stamped document. */}
@@ -136,23 +140,28 @@ export default function SpecSheet({
         aria-hidden
         className="pointer-events-none fixed top-1/2 left-1/2 z-50 w-[90%] -translate-x-1/2 -translate-y-1/2 -rotate-[45deg] opacity-10"
       />
-      <header className="mb-6 border-b-2 border-black pb-3">
-        <h1 className="text-2xl font-extrabold">New Work Trucks · Build spec sheet</h1>
-        <p className="text-base">
+      <header className="mb-3 border-b-2 border-black pb-2">
+        <h1 className="text-xl font-extrabold">New Work Trucks · Build spec sheet</h1>
+        <p className="text-sm">
           Request ID {quote.request_id} · Submitted {submittedOn(quote.created_at)}
         </p>
       </header>
-      {shot && <Picture snap={shot.snap} imgRef={imgRef} />}
-      <table className="w-full text-lg">
+      {shot && <Picture snap={shot.snap} numbers={numbers} imgRef={imgRef} />}
+      <table className="w-full text-sm">
         <tbody>
           {rows.map(({ id, category, name }) => {
             const color = paint.get(id);
             return (
               <tr key={id} className="border-b">
-                <th className="w-48 py-2 text-left font-semibold">{category}</th>
-                <td className="py-2">{name}</td>
+                <th className="w-32 py-1 text-left font-semibold">
+                  <span className="flex items-center gap-2">
+                    {numbers.has(id) && <Marker n={numbers.get(id)!} className="size-5 text-xs" />}
+                    {category}
+                  </span>
+                </th>
+                <td className="py-1">{name}</td>
                 {showPaint && (
-                  <td className="py-2">
+                  <td className="py-1">
                     {color && (
                       <span className="flex items-center gap-2">
                         <PaintChip hex={color.hex} />
@@ -166,21 +175,39 @@ export default function SpecSheet({
           })}
         </tbody>
       </table>
-      <SheetSection title="Customer">
-        <table className="w-full text-lg">
-          <tbody>
-            {customer.map(([label, value]) => (
-              <tr key={label} className="border-b">
-                <th className="w-48 py-2 text-left font-semibold">{label}</th>
-                <td className="py-2 break-all">{value}</td>
-              </tr>
+      {/* Side by side, so the whole sheet fits one page. */}
+      <div className="grid grid-cols-2 gap-6">
+        <SheetSection title="Customer">
+          <table className="w-full text-sm">
+            <tbody>
+              {customer.map(([label, value]) => (
+                <tr key={label} className="border-b">
+                  <th className="w-32 py-1 text-left font-semibold">{label}</th>
+                  <td className="py-1 break-all">{value}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </SheetSection>
+        <SheetSection title="Delivery address">
+          <p className="py-1 text-sm">{quote.deliveryAddress}</p>
+        </SheetSection>
+      </div>
+      {/* Legend: fixed, so it sits along the bottom edge of every printed page. */}
+      {upfitRows.length > 0 && (
+        <footer className="fixed inset-x-0 bottom-0 z-10 px-8 pb-6">
+          <ul className="flex flex-wrap gap-x-6 gap-y-1 border-t border-black pt-2 text-sm">
+            {upfitRows.map(({ id, category, name }) => (
+              <li key={id} className="flex items-center gap-2">
+                <Marker n={numbers.get(id)!} className="size-5 text-xs" />
+                <span>
+                  <span className="font-semibold">{category}:</span> {name}
+                </span>
+              </li>
             ))}
-          </tbody>
-        </table>
-      </SheetSection>
-      <SheetSection title="Delivery address">
-        <p className="py-2 text-lg">{quote.deliveryAddress}</p>
-      </SheetSection>
+          </ul>
+        </footer>
+      )}
     </article>
   );
 }
@@ -199,8 +226,8 @@ function specSheetName(quote: QuotePreview) {
 /** A headed block under the build table, kept whole on one page. */
 function SheetSection({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="mt-6 break-inside-avoid">
-      <h2 className="border-b-2 border-black pb-1 text-sm font-semibold tracking-wider uppercase">{title}</h2>
+    <section className="mt-4 break-inside-avoid">
+      <h2 className="border-b-2 border-black pb-1 text-xs font-semibold tracking-wider uppercase">{title}</h2>
       {children}
     </section>
   );
@@ -213,57 +240,67 @@ function SheetSection({ title, children }: { title: string; children: ReactNode 
  */
 const PICTURE = { maxWidth: 38, maxHeight: 22 };
 
-/** Label box, in rem: text height (one line) plus padding and borders, and the gaps kept around it. */
-const LABEL = { height: 2.375, padX: 1.625, gap: 0.5 };
+/** Number marker on the picture, in rem: its diameter and the gap kept around it. */
+const MARKER = { size: 1.75, gap: 0.375 };
 
 type Rect = { x: number; y: number; w: number; h: number };
 const overlaps = (a: Rect, b: Rect) =>
-  a.x < b.x + b.w + LABEL.gap && b.x < a.x + a.w + LABEL.gap && a.y < b.y + b.h + LABEL.gap && b.y < a.y + a.h + LABEL.gap;
-
-/** Width of a label's text in rem, in the sheet's font. */
-function textWidth(text: string) {
-  const ctx = document.createElement("canvas").getContext("2d");
-  const root = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-  if (!ctx) return text.length * 0.6;
-  ctx.font = `600 ${root}px ${getComputedStyle(document.body).fontFamily}`;
-  return ctx.measureText(text).width / root;
-}
+  a.x < b.x + b.w + MARKER.gap && b.x < a.x + a.w + MARKER.gap && a.y < b.y + b.h + MARKER.gap && b.y < a.y + a.h + MARKER.gap;
 
 /**
- * Places each label just above its part on a picture `width` × `height` rem.
- * Top-most first; a label that would touch one already placed moves up or
- * down (whichever is closer) until it is clear, never below the picture, so
- * every label is shown.
+ * Places each numbered upfit's marker just above its part on a picture
+ * `width` × `height` rem. Top-most first; a marker that would touch one
+ * already placed moves up or down (whichever is closer) until it is clear,
+ * never below the picture, so every marker is shown.
  */
-function placeLabels(labels: Snapshot["labels"], width: number, height: number) {
-  const placed: (Rect & { id: string; label: string })[] = [];
-  const order = [...labels].sort((a, b) => a.y - b.y);
+function placeMarkers(labels: Snapshot["labels"], numbers: Map<string, number>, width: number, height: number) {
+  const placed: (Rect & { id: string; n: number })[] = [];
+  const order = labels.filter((l) => numbers.has(l.id)).sort((a, b) => a.y - b.y);
+  const w = MARKER.size;
+  const h = MARKER.size;
   for (const l of order) {
-    const w = textWidth(l.label) + LABEL.padX;
-    const h = LABEL.height;
     const x = Math.min(Math.max(l.x * width - w / 2, 0), Math.max(0, width - w));
-    const want = l.y * height - LABEL.gap - h;
-    // Where it wants to be, or just above or below any label already there.
-    const tries = [want, ...placed.flatMap((r) => [r.y - LABEL.gap - h - 0.01, r.y + r.h + LABEL.gap + 0.01])]
+    const want = l.y * height - MARKER.gap - h;
+    // Where it wants to be, or just above or below any marker already there.
+    const tries = [want, ...placed.flatMap((r) => [r.y - MARKER.gap - h - 0.01, r.y + r.h + MARKER.gap + 0.01])]
       .filter((y) => y + h <= height)
       .sort((a, b) => Math.abs(a - want) - Math.abs(b - want));
     const y = tries.find((y) => !placed.some((r) => overlaps(r, { x, y, w, h })))!;
-    placed.push({ id: l.id, label: l.label, x, y, w, h });
+    placed.push({ id: l.id, n: numbers.get(l.id)!, x, y, w, h });
   }
   return placed;
 }
 
+/** An upfit's number: white on a black circle, the same on the picture, in the table and in the legend. */
+function Marker({ n, className = "" }: { n: number; className?: string }) {
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center justify-center rounded-full bg-black font-bold text-white tabular-nums ${className}`}
+    >
+      {n}
+    </span>
+  );
+}
+
 /**
- * The picture at its own aspect ratio and a fixed size, with a label by each
- * upfit. The labels are page text, so they print as sharp as the table.
+ * The picture at its own aspect ratio and a fixed size, with each upfit's
+ * number by it (see the legend). The markers are page text, so they print sharp.
  */
-function Picture({ snap, imgRef }: { snap: Snapshot; imgRef: RefObject<HTMLImageElement | null> }) {
+function Picture({
+  snap,
+  numbers,
+  imgRef,
+}: {
+  snap: Snapshot;
+  numbers: Map<string, number>;
+  imgRef: RefObject<HTMLImageElement | null>;
+}) {
   const aspect = snap.width / snap.height;
   const height = Math.min(PICTURE.maxHeight, PICTURE.maxWidth / aspect);
   const width = height * aspect;
-  const labels = useMemo(() => placeLabels(snap.labels, width, height), [snap, width, height]);
-  // Room above the picture for labels that sit higher than its top edge.
-  const above = Math.max(0, ...labels.map((l) => -l.y));
+  const markers = useMemo(() => placeMarkers(snap.labels, numbers, width, height), [snap, numbers, width, height]);
+  // Room above the picture for markers that sit higher than its top edge.
+  const above = Math.max(0, ...markers.map((m) => -m.y));
   return (
     <figure className="relative mx-auto mb-3" style={{ width: `${width}rem`, height: `${height}rem`, marginTop: `${above + 0.5}rem` }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -273,14 +310,14 @@ function Picture({ snap, imgRef }: { snap: Snapshot; imgRef: RefObject<HTMLImage
         alt="The build with its racks and bumpers separated"
         className="absolute inset-0 size-full"
       />
-      {labels.map((l) => (
+      {markers.map((m) => (
         <span
-          key={l.id}
+          key={m.id}
           aria-hidden
-          className="absolute flex items-center justify-center rounded-lg border border-neutral-300 bg-white text-base leading-6 font-semibold whitespace-nowrap text-neutral-900"
-          style={{ left: `${l.x}rem`, top: `${l.y}rem`, width: `${l.w}rem`, height: `${l.h}rem` }}
+          className="absolute flex"
+          style={{ left: `${m.x}rem`, top: `${m.y}rem`, width: `${m.w}rem`, height: `${m.h}rem` }}
         >
-          {l.label}
+          <Marker n={m.n} className="size-full text-sm" />
         </span>
       ))}
     </figure>

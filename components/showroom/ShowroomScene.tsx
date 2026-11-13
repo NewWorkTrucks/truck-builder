@@ -1226,6 +1226,7 @@ export default function ShowroomScene({
                 front={front}
                 overlayRef={labelsRef}
                 toolbarRef={toolbarRef}
+                focus={outlinedId}
               />
               {!model && <SnapshotRig explosion={explosion} front={front} loaded={loaded} />}
             </>

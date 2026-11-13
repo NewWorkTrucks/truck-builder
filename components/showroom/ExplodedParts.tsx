@@ -631,12 +631,15 @@ export function toolbarInset(toolbar: HTMLElement | null, canvas: HTMLCanvasElem
 const LABEL_GAP_PX = 8;
 const LABEL_STAGGER_MS = 120;
 
-/** Fades a label in (staggered by the part's order) or out; the CSS transition does the rest. */
-function setShown(card: HTMLElement, shown: boolean, part: ExplodePart) {
+/**
+ * Fades a label in (staggered by the part's order, unless `stagger` is off) or
+ * out; the CSS transition does the rest.
+ */
+function setShown(card: HTMLElement, shown: boolean, part: ExplodePart, stagger: boolean) {
   const value = String(shown);
   if (card.dataset.shown === value) return;
   card.dataset.shown = value;
-  card.style.transitionDelay = shown ? `${Math.max(0, part.rank) * LABEL_STAGGER_MS}ms` : "0ms";
+  card.style.transitionDelay = shown && stagger ? `${Math.max(0, part.rank) * LABEL_STAGGER_MS}ms` : "0ms";
 }
 const _top = new THREE.Vector3();
 const _ndc = new THREE.Vector3();
@@ -649,6 +652,9 @@ const overlaps = (a: Placed, b: Placed) =>
  * Positions the labels once every part has arrived, on each rendered frame
  * (orbiting, resizing). Nearest labels win; any label that would overlap one
  * already placed, or leave the canvas, is hidden.
+ *
+ * With `focus` (the builder), only that part's label shows, at once, and it is
+ * nudged inside the canvas rather than hidden; `null` shows none.
  */
 export function ExplodeLabels({
   explosion,
@@ -656,6 +662,7 @@ export function ExplodeLabels({
   front,
   overlayRef,
   toolbarRef,
+  focus,
 }: {
   explosion: Explosion;
   plan: ExplodePart[];
@@ -664,10 +671,16 @@ export function ExplodeLabels({
   overlayRef: RefObject<HTMLDivElement | null>;
   /** Labels never sit under the camera toolbar. */
   toolbarRef: RefObject<HTMLElement | null>;
+  /** The one part whose label shows (hovered or tapped); omitted, all can show. */
+  focus?: string | null;
 }) {
   const camera = useThree((s) => s.camera);
   const size = useThree((s) => s.size);
   const gl = useThree((s) => s.gl);
+  const invalidate = useThree((s) => s.invalidate);
+  const focused = focus !== undefined;
+  // Show or hide the label as soon as the pointer moves on or off a part.
+  useEffect(() => invalidate(), [focus, invalidate]);
   useFrame(() => {
     const root = overlayRef.current;
     if (!root) return;
@@ -683,7 +696,7 @@ export function ExplodeLabels({
       if (!el || !card) continue;
       const box = explosion.boxes.get(p.id);
       cards.push({ card, part: p });
-      if (!show || !box) continue;
+      if (!show || !box || (focused && p.id !== focus)) continue;
       // Top centre of the part where it sits now.
       box.getCenter(_top).setY(box.max.y);
       _top.x += p.offset[0];
@@ -713,6 +726,10 @@ export function ExplodeLabels({
       const w = it.el.offsetWidth;
       const h = it.el.offsetHeight;
       const r = { x: it.x - w / 2, y: it.y - h - LABEL_GAP_PX, w, h };
+      if (focused) {
+        r.x = Math.min(Math.max(r.x, 0), size.width - w);
+        r.y = Math.min(Math.max(r.y, top), size.height - h);
+      }
       const inside = r.x >= 0 && r.y >= top && r.x + w <= size.width && r.y + h <= size.height;
       if (!inside || placed.some((q) => overlaps(q, r))) continue;
       it.el.style.transform = `translate(${Math.round(r.x)}px, ${Math.round(r.y)}px)`;
@@ -720,7 +737,7 @@ export function ExplodeLabels({
       placed.push(r);
     }
     // Labels that are hidden fade out where they were; shown ones fade in.
-    for (const { card, part } of cards) setShown(card, shown.has(card), part);
+    for (const { card, part } of cards) setShown(card, shown.has(card), part, !focused);
   });
   return null;
 }

@@ -736,24 +736,36 @@ function ViewTransition({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request, controls, camera, front, aspect, invalidate]);
 
-  useFrame(() => {
+  useFrame((state) => {
     const tw = tween.current;
-    if (!tw || !controls) return;
+    const orbit = state.controls as OrbitControlsImpl | null;
+    if (!tw || !orbit) return;
     const k = reduced ? 1 : Math.min(1, (performance.now() - tw.t0) / MOTION.viewTransitionMs);
     const e = easeInOut(k);
     const lerp = (a: number, b: number) => a + (b - a) * e;
-    camera.position
-      .setFromSpherical(
-        new THREE.Spherical(
-          lerp(tw.from.radius, tw.to.radius),
-          lerp(tw.from.phi, tw.to.phi),
-          lerp(tw.from.theta, tw.to.theta),
-        ),
-      )
-      .add(controls.target);
-    controls.update();
-    if (k < 1) invalidate();
-    else tween.current = null;
+    const place = () =>
+      camera.position
+        .setFromSpherical(
+          new THREE.Spherical(
+            lerp(tw.from.radius, tw.to.radius),
+            lerp(tw.from.phi, tw.to.phi),
+            lerp(tw.from.theta, tw.to.theta),
+          ),
+        )
+        .add(orbit.target);
+    place();
+    orbit.update();
+    if (k < 1) return invalidate();
+    tween.current = null;
+    // Arrived: drop any motion left over from a drag (one undamped update
+    // applies and clears it), then sit exactly on the view, so nothing can
+    // drift or swing later.
+    const damping = orbit.enableDamping;
+    orbit.enableDamping = false;
+    orbit.update();
+    orbit.enableDamping = damping;
+    place();
+    orbit.update();
   }, -1);
   return null;
 }

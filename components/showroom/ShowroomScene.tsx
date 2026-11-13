@@ -9,7 +9,7 @@ import {
   PerformanceMonitor,
   useGLTF,
 } from "@react-three/drei";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import {
   Suspense,
   forwardRef,
@@ -18,6 +18,7 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
+  type ReactNode,
   useRef,
   useState,
 } from "react";
@@ -25,10 +26,11 @@ import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { EXPLODE_TIMING, explodePlan, type ExplodePart } from "@/lib/explode";
 import { PAINT_MATERIAL } from "@/lib/paint";
-import { registerSnapshot } from "@/lib/spec-snapshot";
+import { registerSnapshot, trimmedPng } from "@/lib/spec-snapshot";
 import { TRUCK_LIGHTS } from "@/lib/truck-lights";
 import { ScrollDirector, type ScrollStory } from "./ScrollDirector";
 import TruckLights, { isLightBeam } from "./TruckLights";
+import PartOutline from "./PartOutline";
 import { getRenderBudget } from "@/lib/render-budget";
 import RenderStats, { statsEnabled } from "../three/RenderStats";
 import {
@@ -43,6 +45,7 @@ import {
   ExplodeDriver,
   ExplodeLabels,
   LabelOverlay,
+  type Picking,
   fitExplodedRadius,
   toolbarInset,
   ExplodeGroup,
@@ -97,8 +100,6 @@ type Props = {
   exploded?: boolean;
   /** Shows the "Show parts" toggle in the orbit toolbar. */
   onExplodedChange?: (exploded: boolean) => void;
-  /** Orbit only: shows the camera-view toolbar. Defaults to true. */
-  cameraViews?: boolean;
   /** Optional GLB URL replacing the catalog build. */
   model?: string;
   theme: HeroTheme;
@@ -374,6 +375,50 @@ const FootprintShadow = forwardRef<THREE.Mesh>(function FootprintShadow(_, ref) 
 });
 
 /** Sits the parts on the disc with the ticks; the turntable also spins them. */
+const pointerType = (e: ThreeEvent<PointerEvent | MouseEvent>) =>
+  (e.nativeEvent as PointerEvent).pointerType;
+
+/**
+ * One part (the vehicle or an upfit) that can be outlined: hovered with a
+ * mouse, or tapped on a touch screen. Always mounted around the part (wrapping
+ * it later would reload its model); without `picking` it has no handlers, so
+ * nothing is raycast.
+ */
+function PickableGroup({
+  id,
+  picking,
+  children,
+}: {
+  id: string;
+  picking?: Picking;
+  children: ReactNode;
+}) {
+  // State, not a ref: the outline needs the group once it is mounted.
+  const [group, setGroup] = useState<THREE.Group | null>(null);
+  if (!picking) return <group ref={setGroup}>{children}</group>;
+  return (
+    <group
+      ref={setGroup}
+      onPointerOver={(e) => {
+        // Only the frontmost part, and not while dragging the camera around.
+        e.stopPropagation();
+        if (pointerType(e) === "mouse" && e.buttons === 0) picking.hover(id, true);
+      }}
+      onPointerOut={(e) => {
+        if (pointerType(e) === "mouse") picking.hover(id, false);
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        // A drag that ends on the part is a camera move, not a tap.
+        if (pointerType(e) !== "mouse" && e.delta < 8) picking.tap(id);
+      }}
+    >
+      {children}
+      {group && picking.outlined === id && <PartOutline root={group} />}
+    </group>
+  );
+}
+
 function Truck({
   vehicleId,
   parts,
@@ -386,6 +431,7 @@ function Truck({
   spin,
   still,
   lightsOn,
+  picking,
 }: {
   vehicleId: string;
   parts: Part[];
@@ -401,6 +447,8 @@ function Truck({
   spin?: Spin;
   still: boolean;
   lightsOn?: boolean;
+  /** Present while the parts are separated: parts can be outlined. */
+  picking?: Picking;
 }) {
   const spinner = useRef<THREE.Group>(null);
   const truck = useRef<THREE.Group>(null);
@@ -486,7 +534,9 @@ function Truck({
               enterDelay={slide.enter[ex.id]}
               leaveDelay={leaving || leavingIds.has(ex.id) ? (slide.leave[ex.id] ?? 0) : undefined}
             >
-              {model}
+              <PickableGroup id={ex.id} picking={picking}>
+                {model}
+              </PickableGroup>
             </ExplodeGroup>
           ) : (
             <group key={p.url}>{model}</group>
@@ -533,19 +583,30 @@ const ZOOM = { in: 0.6, out: 1.6 };
 const fitDistance = (aspect: number) =>
   Math.hypot(...ORBIT_CAMERA) * Math.max(1, FIT_ASPECT / aspect);
 
-/** OrbitControls fitted to the viewport, with zoom limited around that distance. */
+/**
+ * OrbitControls fitted to the viewport, with zoom limited around that distance.
+ * Each vehicle opens in the Front 3/4 view (the "Reset" preset).
+ */
 function OrbitRig({
   explodeFit,
   toolbarRef,
+  front,
 }: {
   explodeFit: number | null;
   toolbarRef: React.RefObject<HTMLElement | null>;
+  front: [number, number];
 }) {
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
   const size = useThree((s) => s.size);
   const invalidate = useThree((s) => s.invalidate);
   const fit = fitDistance(size.width / size.height);
+  const [frontX, frontZ] = front;
+  useLayoutEffect(() => {
+    camera.position.setFromSpherical(viewSpherical(DEFAULT_VIEW, [frontX, frontZ], camera.position.length()));
+    camera.lookAt(0, 0, 0);
+    invalidate();
+  }, [camera, frontX, frontZ, invalidate]);
   useEffect(() => {
     camera.position.setLength(fit);
   }, [camera, fit]);
@@ -574,15 +635,17 @@ function OrbitRig({
   );
 }
 
-type View = "front34" | "side" | "rear" | "top" | "reset";
+type View = "front34" | "side" | "rear" | "top";
+
+/** The view each vehicle opens in, and the one "Reset" returns to; the spec sheet's picture uses it too. */
+const DEFAULT_VIEW: View = "front34";
 
 /** Preset buttons, always visible in the orbit view (3D-MODELING-GUIDELINES §5). */
 const VIEWS: { id: View; label: string }[] = [
-  { id: "front34", label: "Front 3/4" },
+  { id: DEFAULT_VIEW, label: "Reset" },
   { id: "side", label: "Side" },
   { id: "rear", label: "Rear" },
   { id: "top", label: "Top" },
-  { id: "reset", label: "Reset view" },
 ];
 
 /** Polar limits; the top preset sits just inside the upper one. */
@@ -602,10 +665,6 @@ function viewSpherical(view: View, front: [number, number], radius: number) {
       return at(1.2, ahead + Math.PI);
     case "top":
       return at(POLAR.min, ahead + Math.PI / 2);
-    case "reset":
-      return new THREE.Spherical().setFromVector3(
-        new THREE.Vector3(...ORBIT_CAMERA).setLength(radius),
-      );
   }
 }
 
@@ -720,13 +779,13 @@ function SnapshotRig({
         try {
           // Fit from the preset direction, with no toolbar offset.
           cam.clearViewOffset();
-          const dir = new THREE.Vector3().setFromSpherical(viewSpherical("front34", front, 1));
+          const dir = new THREE.Vector3().setFromSpherical(viewSpherical(DEFAULT_VIEW, front, 1));
           const radius = fitExplodedRadius(explosion, cam, controls.target, 1, dir);
           cam.position.copy(dir.multiplyScalar(radius)).add(controls.target);
           cam.lookAt(controls.target);
           scene.background = null; // transparent: the sheet is white, not the dark room
           advance(performance.now());
-          return gl.domElement.toDataURL("image/png");
+          return trimmedPng(gl.domElement);
         } finally {
           // Never leave the live view exploded or re-framed, even if drawing threw.
           scene.background = savedBackground;
@@ -854,7 +913,6 @@ export default function ShowroomScene({
   partColors,
   exploded = false,
   onExplodedChange,
-  cameraViews = true,
   model,
   theme,
   lightsTheme = theme,
@@ -888,8 +946,22 @@ export default function ShowroomScene({
   const [explodeFit, setExplodeFit] = useState<number | null>(null);
   /** Screen-reader announcement; empty until the first toggle so nothing is read on load. */
   const [announcement, setAnnouncement] = useState("");
+  // Part (or its label) under the mouse, and the one last tapped on a touch screen.
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [tappedId, setTappedId] = useState<string | null>(null);
+  const outlinedId = exploded ? (hoveredId ?? tappedId) : null;
+  const picking = useMemo<Picking>(
+    () => ({
+      outlined: outlinedId,
+      hover: (id, over) => setHoveredId((h) => (over ? id : h === id ? null : h)),
+      tap: (id) => setTappedId((t) => (t === id ? null : id)),
+    }),
+    [outlinedId],
+  );
   const toggleExploded = () => {
     const next = !exploded;
+    setHoveredId(null);
+    setTappedId(null);
     setAnnouncement(next ? "Parts separated" : "Parts put back together");
     onExplodedChange?.(next);
   };
@@ -1033,6 +1105,8 @@ export default function ShowroomScene({
       shadows="soft"
       dpr={[1, budget.maxDpr]}
       onClick={turntable ? undefined : () => setStoppedFor(vehicleId)}
+      // A tap on the cab or the background clears a tapped outline.
+      onPointerMissed={() => setTappedId(null)}
       onCreated={({ get }) => {
         // RenderGate swaps `invalidate`, so always call the current one.
         invalidateRef.current = () => get().invalidate();
@@ -1075,7 +1149,7 @@ export default function ShowroomScene({
         </>
       ) : (
         <>
-          <OrbitRig explodeFit={explodeFit} toolbarRef={toolbarRef} />
+          <OrbitRig explodeFit={explodeFit} toolbarRef={toolbarRef} front={front} />
           <FrameRateIndependentDamping />
           <AutoRotate enabled={animate && stoppedFor !== vehicleId} />
           <ViewTransition
@@ -1126,12 +1200,20 @@ export default function ShowroomScene({
           spin={turntable ? spin : undefined}
           still={frozen}
           lightsOn={lightsOn}
+          picking={explodable && !turntable && exploded ? picking : undefined}
         />
         <ReadySignal onReady={handleReady} />
       </Suspense>
     </Canvas>
-    {explodable && <LabelOverlay plan={plan} overlayRef={labelsRef} theme={theme} />}
-    {!turntable && cameraViews && (
+    {explodable && (
+      <LabelOverlay
+        plan={plan}
+        overlayRef={labelsRef}
+        theme={theme}
+        picking={!turntable && exploded ? picking : undefined}
+      />
+    )}
+    {!turntable && (
       <div
         ref={toolbarRef}
         role="toolbar"

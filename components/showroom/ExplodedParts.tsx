@@ -538,8 +538,19 @@ const ROLE_TITLE: Record<ExplodeRole, string> = {
 const CARD_MOTION =
   "invisible translate-y-2 opacity-0 transition-[opacity,visibility,translate] duration-300 ease-out data-[shown=true]:visible data-[shown=true]:translate-y-0 data-[shown=true]:opacity-100 motion-reduce:translate-y-0 motion-reduce:transition-none";
 
+/** Hover (mouse) and tap (touch) outlining of parts while they are separated. */
+export type Picking = {
+  /** The part drawn with an outline, if any. */
+  outlined: string | null;
+  /** The mouse entered (`over` true) or left a part or its label. */
+  hover: (id: string, over: boolean) => void;
+  /** A tap on a part or its label: outlines it, or clears it when it is already outlined. */
+  tap: (id: string) => void;
+};
+
 /**
- * DOM labels (no draw calls), positioned by ExplodeLabels. Hidden from screen
+ * DOM labels (no draw calls), positioned by ExplodeLabels. With `picking`, a
+ * shown label outlines its part like the part itself does (hover or tap). Hidden from screen
  * readers: the live region (builder) or the stage's label (landing) describes them.
  * The dark theme is the landing page's callout: what the part is, then its name,
  * with a leader down to the part.
@@ -548,11 +559,14 @@ export function LabelOverlay({
   plan,
   overlayRef,
   theme = "light",
+  picking,
 }: {
   plan: ExplodePart[];
   overlayRef: RefObject<HTMLDivElement | null>;
   theme?: HeroTheme;
+  picking?: Picking;
 }) {
+  const isMouse = (e: { nativeEvent: Event }) => (e.nativeEvent as PointerEvent).pointerType === "mouse";
   return (
     <div ref={overlayRef} aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
       {plan.map((p) => (
@@ -573,7 +587,13 @@ export function LabelOverlay({
             <div
               data-card
               data-shown="false"
-              className={`${CARD_MOTION} rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-base font-semibold text-neutral-900 shadow-sm`}
+              // Faded-out labels stay where they were: they must not catch the pointer.
+              className={`${CARD_MOTION} rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-base font-semibold text-neutral-900 shadow-sm ${
+                picking ? "pointer-events-auto data-[shown=false]:pointer-events-none" : ""
+              }`}
+              onPointerEnter={picking && ((e) => isMouse(e) && e.buttons === 0 && picking.hover(p.id, true))}
+              onPointerLeave={picking && ((e) => isMouse(e) && picking.hover(p.id, false))}
+              onClick={picking && ((e) => !isMouse(e) && picking.tap(p.id))}
             >
               {p.label}
             </div>

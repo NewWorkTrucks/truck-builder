@@ -29,17 +29,16 @@ const LoadingOverlay = () => {
 };
 
 /**
- * The 3D truck. Shows the builder's current build, or with `preview`, a fixed
- * build with no camera or parts controls (drag to rotate and the lights setting still apply).
+ * The 3D truck with its camera views and "Show parts". Shows the builder's
+ * current build, or with `preview`, a fixed build (a submitted quote).
  */
 export default function Scene({ preview }: { preview?: Build }) {
   const storeBuild = useBuilderStore((s) => s.build);
   const build = preview ?? storeBuild;
   const { vehicleId, upfitIds } = build;
-  const storeExploded = useBuilderStore((s) => s.exploded);
+  const exploded = useBuilderStore((s) => s.exploded);
   const setExploded = useBuilderStore((s) => s.setExploded);
   const lightsOn = useBuilderStore((s) => s.lightsOn);
-  const exploded = !preview && storeExploded;
   const [ready, setReady] = useState(false);
   // Catalog id -> its paint material's sRGB hex, e.g. { "ram-696j-body": { "upfit-paint": "#1F5EFF" } }.
   const partColors = useMemo(
@@ -64,9 +63,8 @@ export default function Scene({ preview }: { preview?: Build }) {
           upfitIds={upfitIds}
           partColors={partColors}
           exploded={exploded}
-          onExplodedChange={preview ? undefined : setExploded}
+          onExplodedChange={setExploded}
           lightsOn={lightsOn}
-          cameraViews={!preview}
           interaction="orbit"
           theme="light"
           lightsTheme="dark"

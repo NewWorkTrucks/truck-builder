@@ -118,7 +118,7 @@ export default function SpecSheet({
           ref={imgRef}
           src={shot.url}
           alt="The build with its parts separated"
-          className="mb-6 max-h-96 w-full object-contain"
+          className="mb-3 max-h-96 w-full object-contain"
         />
       )}
       <table className="w-full text-lg">

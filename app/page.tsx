@@ -1,4 +1,3 @@
-import Form from "next/form";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -8,6 +7,7 @@ import {
   Wrench,
   type LucideIcon,
 } from "lucide-react";
+import { verifyQuote } from "@/app/preview/actions";
 import HudRings from "@/components/landing/HudRings";
 import ScrollStory from "@/components/landing/ScrollStory";
 import "@/components/landing/landing.css";
@@ -218,9 +218,9 @@ export default function Home() {
         <div className="mx-auto max-w-3xl px-4 py-24 sm:px-8">
           <SectionHeading eyebrow="Already submitted?" title="See your quoted build." />
           <p className="mt-4 text-lg text-[#a9b1bd]">
-            Enter the request ID from your quote to view your truck in 3D.
+            Enter the request ID from your quote and the email you used to view your truck in 3D.
           </p>
-          <Form action="/preview" className="mt-8 flex flex-col gap-3 sm:flex-row">
+          <form action={verifyQuote} className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <label htmlFor="quote-ref" className="sr-only">
               Request ID
             </label>
@@ -230,13 +230,25 @@ export default function Home() {
               required
               maxLength={64}
               autoComplete="off"
-              placeholder="e.g. TB-20005"
+              placeholder="Request ID, e.g. TB-20005"
+              className="min-h-14 flex-1 rounded-full border border-white/15 bg-white/[0.04] px-6 text-lg text-white placeholder:text-[#8693a6] outline-none focus-visible:border-[#3ea6ff] focus-visible:ring-3 focus-visible:ring-[#3ea6ff]/40"
+            />
+            <label htmlFor="quote-email" className="sr-only">
+              Email
+            </label>
+            <input
+              id="quote-email"
+              name="email"
+              type="email"
+              required
+              autoComplete="email"
+              placeholder="Email on the quote"
               className="min-h-14 flex-1 rounded-full border border-white/15 bg-white/[0.04] px-6 text-lg text-white placeholder:text-[#8693a6] outline-none focus-visible:border-[#3ea6ff] focus-visible:ring-3 focus-visible:ring-[#3ea6ff]/40"
             />
             <button type="submit" className={`${pill} bg-[#3ea6ff] font-bold text-[#04121f]`}>
               View my build
             </button>
-          </Form>
+          </form>
         </div>
       </section>
 

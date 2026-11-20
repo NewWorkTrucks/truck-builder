@@ -16,12 +16,13 @@ import {
   getUpfit,
   getVehicle,
   upfitsForVehicle,
+  vehiclePaints,
   type Upfit,
 } from "@/lib/catalog";
 import PaintChip from "@/components/builder/PaintChip";
 import SubmitBuildDialog from "@/components/builder/SubmitBuildDialog";
 import { Button } from "@/components/ui/button";
-import { PAINT_COLORS, type PaintColorId } from "@/lib/paint";
+import { getPaintColor, type PaintColorId } from "@/lib/paint";
 import { ChevronDown, CircleCheck, Info, SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
@@ -97,14 +98,17 @@ function Field({
 const itemClassName = "min-h-12 rounded-lg py-2";
 
 /**
- * Swatch-only color dropdown for one painted part. Names stay available to
- * screen readers (and as tooltips); the selected swatch shows a check mark.
+ * Color dropdown for one painted part: the vehicle's factory colors, each a
+ * swatch with its name (several whites look alike as swatches alone). The
+ * selected one shows a check mark.
  */
 function PaintDropdown({
   target,
+  offered,
   onChange,
 }: {
   target: PaintTarget;
+  offered: readonly PaintColorId[];
   onChange: (color: PaintColorId) => void;
 }) {
   const current = `${target.label}: ${target.color.name}`;
@@ -117,30 +121,32 @@ function PaintDropdown({
       >
         <PaintChip hex={target.color.hex} className="size-7" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="rounded-xl p-1.5">
+      <DropdownMenuContent align="end" className="w-max rounded-xl p-1.5">
         <DropdownMenuRadioGroup
           value={target.color.id}
           onValueChange={(id) => onChange(id as PaintColorId)}
         >
-          {PAINT_COLORS.map((color) => (
-            <DropdownMenuRadioItem
-              key={color.id}
-              value={color.id}
-              closeOnClick
-              title={color.name}
-              className="min-h-12 min-w-20 rounded-lg py-2 pr-9"
-            >
-              <PaintChip hex={color.hex} className="size-8" />
-              <span className="sr-only">{color.name}</span>
-            </DropdownMenuRadioItem>
-          ))}
+          {offered.map(getPaintColor).map(
+            (color) =>
+              color && (
+                <DropdownMenuRadioItem
+                  key={color.id}
+                  value={color.id}
+                  closeOnClick
+                  className="min-h-12 gap-3 rounded-lg py-2 pr-9 text-base whitespace-nowrap"
+                >
+                  <PaintChip hex={color.hex} className="size-8" />
+                  {color.name}
+                </DropdownMenuRadioItem>
+              ),
+          )}
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );
 }
 
-/** How long the "quote sent" confirmation stays visible. */
+/** How long the "quote sent" confirmation stays visible when it has no request id to keep. */
 const QUOTE_SENT_MS = 8000;
 
 /**
@@ -170,16 +176,22 @@ export default function BuilderPanel({
   const paintFor = (targets: PaintTarget[]) =>
     targets.length ? (
       targets.map((t) => (
-        <PaintDropdown key={t.id} target={t} onChange={(color) => onSetPaint(t.id, color)} />
+        <PaintDropdown
+          key={t.id}
+          target={t}
+          offered={vehiclePaints(build.vehicleId)}
+          onChange={(color) => onSetPaint(t.id, color)}
+        />
       ))
     ) : undefined;
 
   const [submitOpen, setSubmitOpen] = useState(false);
-  const [quoteSent, setQuoteSent] = useState(false);
+  // The sent quote; its request id stays on screen until dismissed, so it can be noted down.
+  const [quoteSent, setQuoteSent] = useState<{ requestId?: string } | null>(null);
 
   useEffect(() => {
-    if (!quoteSent) return;
-    const id = setTimeout(() => setQuoteSent(false), QUOTE_SENT_MS);
+    if (!quoteSent || quoteSent.requestId) return;
+    const id = setTimeout(() => setQuoteSent(null), QUOTE_SENT_MS);
     return () => clearTimeout(id);
   }, [quoteSent]);
 
@@ -302,10 +314,28 @@ export default function BuilderPanel({
           <Alert role="status" className="mb-4 border-primary/30 bg-primary/5 pr-14 text-base compact:mb-3">
             <CircleCheck className="text-primary" />
             <AlertDescription>
-              Quote request sent. Our team will be in touch.
+              {quoteSent.requestId ? (
+                <>
+                  <span className="block">
+                    Quote request sent. Your request ID is{" "}
+                    <strong className="font-bold text-foreground">{quoteSent.requestId}</strong>. Keep it to view
+                    your build later.
+                  </span>
+                  <a
+                    href={`/preview?${new URLSearchParams({ ref: quoteSent.requestId })}`}
+                    target="_blank"
+                    rel="noopener"
+                    className="inline-flex min-h-12 items-center font-semibold text-primary underline underline-offset-4"
+                  >
+                    View my build
+                  </a>
+                </>
+              ) : (
+                "Quote request sent. Our team will be in touch."
+              )}
             </AlertDescription>
             <button
-              onClick={() => setQuoteSent(false)}
+              onClick={() => setQuoteSent(null)}
               aria-label="Dismiss"
               className="absolute top-0 right-0 flex size-12 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
             >
@@ -342,13 +372,16 @@ export default function BuilderPanel({
             </>
           )}
         </div>
-        <Button onClick={() => setSubmitOpen(true)} className="h-12 px-5 text-base compact:hidden">
-          Submit New Build
-        </Button>
+        <div className="flex flex-col gap-1.5 compact:hidden">
+          <Button onClick={() => setSubmitOpen(true)} className="h-12 px-5 text-base">
+            Submit New Build
+          </Button>
+          <p className="text-center text-sm text-muted-foreground">Free quote. No purchase or commitment.</p>
+        </div>
         <SubmitBuildDialog
           open={submitOpen}
           onOpenChange={setSubmitOpen}
-          onSubmitted={() => setQuoteSent(true)}
+          onSubmitted={(requestId) => setQuoteSent({ requestId })}
         />
       </section>
     </div>

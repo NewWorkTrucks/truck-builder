@@ -3,9 +3,10 @@ import {
   getUpfit,
   getVehicle,
   upfitsForVehicle,
+  vehiclePaints,
   type Upfit,
 } from "./catalog";
-import { DEFAULT_PAINT, getPaintColor, type Paint, type PaintColor } from "./paint";
+import { getPaintColor, type Paint, type PaintColor, type PaintColorId } from "./paint";
 
 /** A build is a vehicle, a set of installed upfit ids, and its paint colors. */
 export type Build = { vehicleId: string; upfitIds: string[]; paint: Paint };
@@ -100,12 +101,25 @@ export const toggleUpfit = (build: Build, id: string): BuildResult => {
   };
 };
 
-/** Switch vehicles with its default upfits; the chosen paint carries over. */
-export const changeVehicle = (vehicleId: string, paint: Paint = DEFAULT_PAINT): Build => {
+/**
+ * `color` when the vehicle offers it, else the vehicle's default. Each brand
+ * has its own factory colors, so a color rarely carries over between them.
+ */
+export const offeredPaint = (vehicleId: string, color?: PaintColorId): PaintColorId => {
+  const offered = vehiclePaints(vehicleId);
+  return color && offered.includes(color) ? color : offered[0];
+};
+
+/** Switch vehicles with its default upfits; the vehicle color carries over if the new one offers it. */
+export const changeVehicle = (vehicleId: string, paint?: Paint): Build => {
   const vehicle = getVehicle(vehicleId);
   const installed = new Set<string>();
   vehicle?.defaultUpfitIds.forEach((id) => install(id, installed, []));
-  return { vehicleId, upfitIds: orderedIds(vehicleId, installed), paint };
+  return {
+    vehicleId,
+    upfitIds: orderedIds(vehicleId, installed),
+    paint: { vehicle: offeredPaint(vehicleId, paint?.vehicle), upfits: {} },
+  };
 };
 
 export type PaintTarget = {

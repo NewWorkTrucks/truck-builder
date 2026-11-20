@@ -158,7 +158,7 @@ function SubmitBuildForm({
   onSubmitted,
 }: {
   onClose: () => void;
-  onSubmitted: () => void;
+  onSubmitted: (requestId?: string) => void;
 }) {
   const build = useBuilderStore((s) => s.build);
   const [submitting, setSubmitting] = useState(false);
@@ -172,7 +172,7 @@ function SubmitBuildForm({
     setSubmitting(true);
     setError(false);
     try {
-      await submitBuild({
+      const { requestId } = await submitBuild({
         build: {
           vehicle: getVehicle(build.vehicleId)?.name ?? build.vehicleId,
           upfits: build.upfitIds.map((id) => getUpfit(id)?.name ?? id),
@@ -183,7 +183,7 @@ function SubmitBuildForm({
           deliveryAddress: `${customer.addressLine1}${customer.addressLine2 ? `, ${customer.addressLine2}` : ""}, ${customer.city}, ${customer.state} ${customer.zipCode}, ${customer.country}`,  
         },
       });
-      onSubmitted();
+      onSubmitted(requestId);
     } catch {
       setError(true);
       setSubmitting(false);
@@ -252,21 +252,22 @@ export default function SubmitBuildDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Called after the quote was sent and the dialog closed. */
-  onSubmitted: () => void;
+  /** Called after the quote was sent and the dialog closed, with its request id if known. */
+  onSubmitted: (requestId?: string) => void;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogTitle>Submit your build</DialogTitle>
         <DialogDescription>
-          Review your build and tell us how to reach you.
+          This sends your build to our team for a quote. It isn&apos;t a purchase or reservation: our
+          team confirms pricing and availability with you.
         </DialogDescription>
         <SubmitBuildForm
           onClose={() => onOpenChange(false)}
-          onSubmitted={() => {
+          onSubmitted={(requestId) => {
             onOpenChange(false);
-            onSubmitted();
+            onSubmitted(requestId);
           }}
         />
       </DialogContent>

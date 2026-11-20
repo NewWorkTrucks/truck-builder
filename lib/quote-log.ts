@@ -1,6 +1,6 @@
 import { upfitsForVehicle, VEHICLES } from "./catalog";
-import type { Build } from "./builder";
-import { DEFAULT_PAINT, PAINT_COLORS, type Paint, type PaintColorId } from "./paint";
+import { offeredPaint, type Build } from "./builder";
+import { PAINT_COLORS, type Paint, type PaintColorId } from "./paint";
 import type { PaintSpec } from "./submit-build";
 
 /** A row of the Supabase `truck-quote-logs` table. */
@@ -33,6 +33,10 @@ export const submittedOn = (iso: string) =>
 /** Request ids are short codes like "TB-20005"; anything else can't match. */
 const REF_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 
+/** Whether `value` has the shape of a request id. */
+export const isRequestId = (value: unknown): value is string =>
+  typeof value === "string" && REF_PATTERN.test(value);
+
 /**
  * The quote log whose `request_id` is `ref`, or null if none.
  * Server only: reads with the secret key (bypasses RLS), so callers must check `public` before
@@ -42,7 +46,7 @@ export async function findQuoteLog(ref: string): Promise<QuoteLog | null> {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SECRET_KEY;
   if (!url || !key) throw new Error("SUPABASE_URL or SUPABASE_SECRET_KEY is not configured");
-  if (!REF_PATTERN.test(ref)) return null;
+  if (!isRequestId(ref)) return null;
 
   const query = new URLSearchParams({
     select: "*",
@@ -59,8 +63,15 @@ export async function findQuoteLog(ref: string): Promise<QuoteLog | null> {
   return rows[0] ?? null;
 }
 
+/**
+ * The color a quote recorded, retired ones included, so older quotes show what
+ * was asked for. Matched on name and hex: "Black" names more than one color.
+ */
 const paintId = (spec: PaintSpec | undefined): PaintColorId | undefined =>
-  PAINT_COLORS.find((c) => c.name === spec?.name)?.id;
+  (
+    PAINT_COLORS.find((c) => c.name === spec?.name && c.hex.toLowerCase() === spec?.hex?.toLowerCase()) ??
+    PAINT_COLORS.find((c) => c.name === spec?.name)
+  )?.id;
 
 /** The builder's view of a logged quote, or null when its truck is no longer in the catalog. */
 export function quoteLogToBuild(log: QuoteLog): Build | null {
@@ -70,7 +81,7 @@ export function quoteLogToBuild(log: QuoteLog): Build | null {
     log.upfit_requirements.includes(u.name),
   );
   const paint: Paint = {
-    vehicle: paintId(log.paint?.vehicle) ?? DEFAULT_PAINT.vehicle,
+    vehicle: paintId(log.paint?.vehicle) ?? offeredPaint(vehicle.id),
     upfits: Object.fromEntries(
       upfits.flatMap((u) => {
         const id = paintId(log.paint?.upfits.find((p) => p.upfit === u.name));

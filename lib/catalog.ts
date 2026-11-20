@@ -1,3 +1,5 @@
+import type { PaintColorId } from "./paint";
+
 export type UpfitCategory = "body" | "rack" | "bumper";
 
 export type Vehicle = {
@@ -11,6 +13,8 @@ export type Vehicle = {
   front: [number, number];
   /** Upfits selected when this vehicle is first chosen. */
   defaultUpfitIds: string[];
+  /** Factory colors offered for it and its bodies and racks; the first is the default. */
+  paints: readonly PaintColorId[];
 };
 
 export type Upfit = {
@@ -49,6 +53,15 @@ export const VEHICLES: Vehicle[] = [
     fileName: "RAM 2500HD CC.glb",
     front: [0, -1],
     defaultUpfitIds: ["ram-696j-body"],
+    paints: [
+      "ram-bright-white",
+      "ram-diamond-black",
+      "ram-forged-blue",
+      "ram-granite-crystal",
+      "ram-molten-red",
+      "ram-serrano-green",
+      "ram-silver-zynith",
+    ],
   },
   {
     id: "chevy-express-3500",
@@ -56,6 +69,18 @@ export const VEHICLES: Vehicle[] = [
     fileName: "Chevrolet express 3500.glb",
     front: [1, 0],
     defaultUpfitIds: [],
+    paints: [
+      "chevy-summit-white",
+      "chevy-black",
+      "chevy-sterling-gray",
+      "chevy-cypress-gray",
+      "chevy-riptide-blue",
+      "chevy-lakeshore-blue",
+      "chevy-red-hot",
+      "chevy-radiant-red",
+      "chevy-white-sands",
+      "chevy-polar-white",
+    ],
   },
 ];
 
@@ -117,6 +142,10 @@ export const UPFITS: Upfit[] = [
 ];
 
 export const getVehicle = (id: string) => VEHICLES.find((v) => v.id === id);
+
+/** The colors a vehicle offers (for it and its bodies and racks); the first is its default. */
+export const vehiclePaints = (vehicleId: string): readonly PaintColorId[] =>
+  getVehicle(vehicleId)?.paints ?? VEHICLES[0].paints;
 export const getUpfit = (id: string) => UPFITS.find((u) => u.id === id);
 export const getCategory = (id: UpfitCategory) =>
   CATEGORIES.find((c) => c.id === id)!;

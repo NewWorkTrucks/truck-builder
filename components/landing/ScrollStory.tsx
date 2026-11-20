@@ -4,6 +4,8 @@ import { ArrowDown, CircleCheck } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import HeroStage from "../hero/HeroStage";
 import type { ScrollStory as Story } from "../showroom/ScrollDirector";
+import { offeredPaint } from "@/lib/builder";
+import { HERO_BUILD } from "../showroom/scene-config";
 import { heroColors, samplePose } from "./scroll-story";
 
 const STAGE_LABEL =
@@ -22,7 +24,7 @@ const CHAPTER_COUNT = 5;
 const LIGHTS_ON_FROM = 0.8;
 
 /** The truck stays in its stock white. */
-const COLORS = heroColors("white");
+const COLORS = heroColors(offeredPaint(HERO_BUILD.vehicleId));
 
 /**
  * The landing page's opening: a 3D truck that plays like a video as you

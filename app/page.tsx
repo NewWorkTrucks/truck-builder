@@ -52,7 +52,7 @@ const steps = [
   },
   {
     title: "Get help from our team",
-    text: "We review your build and help you find the right fit.",
+    text: "We review your build, confirm pricing and availability, and send you a quote. Nothing is reserved or purchased.",
   },
 ];
 

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { changeVehicle, toggleUpfit, type Build } from "./builder";
-import { VEHICLES } from "./catalog";
+import { VEHICLES, vehiclePaints } from "./catalog";
 import type { PaintColorId } from "./paint";
 
 type BuilderState = {
@@ -36,6 +36,8 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
   },
   setPaint: (targetId, color) => {
     const { build } = get();
+    // Only the vehicle's own factory colors.
+    if (!vehiclePaints(build.vehicleId).includes(color)) return;
     const { paint } = build;
     const next =
       targetId === build.vehicleId

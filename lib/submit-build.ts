@@ -39,12 +39,17 @@ export type BuildSubmission = {
   customer: CustomerDetails;
 };
 
-/** Sends a customer's build to our quote endpoint, which forwards it to the sales webhook. */
-export async function submitBuild(submission: BuildSubmission) {
+/**
+ * Sends a customer's build to our quote endpoint, which forwards it to the
+ * sales webhook. Resolves with the new quote's request id when the webhook gave one.
+ */
+export async function submitBuild(submission: BuildSubmission): Promise<{ requestId?: string }> {
   const res = await fetch("/api/quote", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(submission),
   });
   if (!res.ok) throw new Error("Quote request failed");
+  const { requestId } = (await res.json().catch(() => ({}))) as { requestId?: unknown };
+  return { requestId: typeof requestId === "string" ? requestId : undefined };
 }

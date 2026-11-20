@@ -1,5 +1,8 @@
 import axios from "axios";
-import { PAINT_COLORS } from "@/lib/paint";
+import { VEHICLES } from "@/lib/catalog";
+import { getPaintColor } from "@/lib/paint";
+import { grantAccess } from "@/lib/quote-access";
+import { isRequestId } from "@/lib/quote-log";
 import type { BuildSubmission } from "@/lib/submit-build";
 
 const REQUIRED_CUSTOMER_FIELDS = [
@@ -17,20 +20,34 @@ const REQUIRED_CUSTOMER_FIELDS = [
 
 const isText = (v: unknown) => typeof v === "string" && v.trim() !== "";
 
-/** Only the offered presets, so sales never receives a made-up color. */
-const isPaint = (p: unknown) =>
-  PAINT_COLORS.some(
-    (c) => c.name === (p as { name?: unknown })?.name && c.hex === (p as { hex?: unknown })?.hex,
-  );
+/** Only colors the vehicle offers, so sales never receives a made-up or other-brand color. */
+const offersPaint = (vehicleName: unknown) => {
+  const offered = VEHICLES.find((v) => v.name === vehicleName)?.paints.map(getPaintColor) ?? [];
+  return (p: unknown) =>
+    offered.some(
+      (c) => c?.name === (p as { name?: unknown })?.name && c?.hex === (p as { hex?: unknown })?.hex,
+    );
+};
 
-const isValid = (s: BuildSubmission) =>
-  isText(s?.build?.vehicle) &&
-  Array.isArray(s.build.upfits) &&
-  s.build.upfits.every((u) => typeof u === "string") &&
-  isPaint(s.build.paint?.vehicle) &&
-  Array.isArray(s.build.paint.upfits) &&
-  s.build.paint.upfits.every((p) => s.build.upfits.includes(p?.upfit) && isPaint(p)) &&
-  REQUIRED_CUSTOMER_FIELDS.every((f) => isText(s.customer?.[f]));
+const isValid = (s: BuildSubmission) => {
+  const isPaint = offersPaint(s?.build?.vehicle);
+  return (
+    isText(s?.build?.vehicle) &&
+    Array.isArray(s.build.upfits) &&
+    s.build.upfits.every((u) => typeof u === "string") &&
+    isPaint(s.build.paint?.vehicle) &&
+    Array.isArray(s.build.paint.upfits) &&
+    s.build.paint.upfits.every((p) => s.build.upfits.includes(p?.upfit) && isPaint(p)) &&
+    REQUIRED_CUSTOMER_FIELDS.every((f) => isText(s.customer?.[f]))
+  );
+};
+
+/** The new quote's request id from the webhook's reply, if it gave one. */
+function requestIdOf(reply: unknown): string | undefined {
+  const r = reply as Record<string, unknown> | null;
+  const nested = r?.data as Record<string, unknown> | undefined;
+  return [r?.request_id, r?.requestId, nested?.request_id, nested?.requestId].find(isRequestId);
+}
 
 /**
  * Forwards a customer's build to the sales webhook. Runs on the server, so the
@@ -48,9 +65,9 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid quote request" }, { status: 400 });
   }
 
+  let data: unknown;
   try {
-    const { data } = await axios.post(`${root}/tb/quote`, submission, { timeout: 10_000 });
-    return Response.json({ success: true, data });
+    ({ data } = await axios.post(`${root}/tb/quote`, submission, { timeout: 10_000 }));
   } catch (error) {
     console.error(
       "Quote webhook failed:",
@@ -58,4 +75,11 @@ export async function POST(request: Request) {
     );
     return Response.json({ error: "Quote request failed" }, { status: 502 });
   }
+
+  // The quote is saved from here on: nothing below may report it as failed.
+  const requestId = requestIdOf(data);
+  if (!requestId) console.warn("Quote webhook replied without a request id");
+  // The customer just gave this quote's email, so its preview opens without asking again.
+  if (requestId) await grantAccess(requestId).catch((e) => console.error("Quote access grant failed:", e));
+  return Response.json({ success: true, requestId });
 }

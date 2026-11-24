@@ -131,15 +131,21 @@ export default function SpecSheet({
       // with room at the bottom for the legend.
       className="relative isolate hidden box-decoration-clone p-8 pb-24 text-black print:block"
     >
-      {/* Watermark: fixed, so it sits in the middle of every printed page, rising
-          across it and laid over everything, like a stamped document. */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/logo-black.webp"
-        alt=""
-        aria-hidden
-        className="pointer-events-none fixed top-1/2 left-1/2 z-50 w-[90%] -translate-x-1/2 -translate-y-1/2 -rotate-[45deg] opacity-10"
-      />
+      {/* Watermark: fixed, so it repeats on every printed page, laid over everything like a
+          stamped document. A square of 2-inch logos, rows staggered, turned -45 degrees and
+          big enough to cover the page's corners. */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 z-50 overflow-hidden opacity-10">
+        <div className="absolute top-1/2 left-1/2 flex h-[18in] w-[18in] -translate-x-1/2 -translate-y-1/2 -rotate-[45deg] flex-col justify-center gap-y-[0.8in]">
+          {Array.from({ length: 10 }, (_, row) => (
+            <div key={row} className={`flex justify-center gap-x-[1in] ${row % 2 ? "translate-x-[1.5in]" : ""}`}>
+              {Array.from({ length: 8 }, (_, col) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img key={col} src="/logo-black.webp" alt="" className="w-[2in] max-w-none shrink-0" />
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
       <header className="mb-3 border-b-2 border-black pb-2">
         <h1 className="text-xl font-extrabold">New Work Trucks · Build spec sheet</h1>
         <p className="text-sm">

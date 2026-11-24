@@ -132,15 +132,15 @@ export default function SpecSheet({
       className="relative isolate hidden box-decoration-clone p-8 pb-24 text-black print:block"
     >
       {/* Watermark: fixed, so it repeats on every printed page, laid over everything like a
-          stamped document. A square of 2-inch logos, rows staggered, turned -45 degrees and
+          stamped document. A square of 1.5-inch logos, rows staggered, turned -45 degrees and
           big enough to cover the page's corners. */}
       <div aria-hidden className="pointer-events-none fixed inset-0 z-50 overflow-hidden opacity-10">
-        <div className="absolute top-1/2 left-1/2 flex h-[18in] w-[18in] -translate-x-1/2 -translate-y-1/2 -rotate-[45deg] flex-col justify-center gap-y-[0.8in]">
-          {Array.from({ length: 10 }, (_, row) => (
-            <div key={row} className={`flex justify-center gap-x-[1in] ${row % 2 ? "translate-x-[1.5in]" : ""}`}>
-              {Array.from({ length: 8 }, (_, col) => (
+        <div className="absolute top-1/2 left-1/2 flex h-[18in] w-[18in] -translate-x-1/2 -translate-y-1/2 -rotate-[45deg] flex-col justify-center gap-y-[0.6in]">
+          {Array.from({ length: 14 }, (_, row) => (
+            <div key={row} className={`flex justify-center gap-x-[0.75in] ${row % 2 ? "translate-x-[1.125in]" : ""}`}>
+              {Array.from({ length: 9 }, (_, col) => (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img key={col} src="/logo-black.webp" alt="" className="w-[2in] max-w-none shrink-0" />
+                <img key={col} src="/logo-black.webp" alt="" className="w-[1.5in] max-w-none shrink-0" />
               ))}
             </div>
           ))}
